@@ -1,10 +1,13 @@
 {
   "mcpServers": {
-      "nmap-scanner": {
-          "command": "python",
-          "args": [
-              "<nmap_service.pyがおいてあるパス>"
-          ]
-      }
+    "nmap-scanner": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-i",
+        "recon-mcp"
+      ]
+    }
   }
 }
