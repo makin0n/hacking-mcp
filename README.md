@@ -12,13 +12,12 @@ Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供
 - Webサイトの隠しディレクトリ探索
 - サブドメインの自動探索
 - 日本語での詳細なレポート出力
+- VPNのオンオフに対応
 
 ## 必要条件
 
-- Windows 10/11
 - Claude Desktop
-- Docker Desktop
-- Python 3.11以上
+- Docker
 
 ## セットアップ手順
 
@@ -39,12 +38,19 @@ C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
 ## 使用方法
 
 ### 基本的な使用
-
-1. Claude Desktopを起動
-2. 以下のような形式で質問を入力：
+1. docker imageをビルド
+2. Claude Desktopを起動
+3. 以下のような形式で質問を入力：
 ```
 <対象IPアドレス>をスキャンして
 ```
+
+### VPNのオンオフ
+Hack The BoxやTry Hack Meといった教育用環境での使用のため、VPNの使用有無を切り替えることができます。
+VPNを使用する場合は、以下を実施してから使用してください。
+1. プロジェクトフォルダ（recon-mcp）内にvpnフォルダを作成
+2. vpnフォルダ内に、自分用に発行された.ovpnファイルを配置
+3. Claude Desktopに読み込ませる設定ファイルは、claude_desktop_config_vpn_ver.jsonを使用
 
 ### スキャンの種類
 
