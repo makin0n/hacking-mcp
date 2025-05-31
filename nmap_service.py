@@ -46,21 +46,26 @@ PARSER = etree.XMLParser(
 )
 
 @mcp.tool()
-async def scan_ftp(target: str) -> str:
-    """FTPサービスの詳細スキャンを実行"""
+async def scan_service_vulnerabilities(target: str, ports: str = None) -> str:
+    """指定されたポートのサービスバージョンを検出します"""
     try:
-        print(f"Starting FTP scan of {target}", file=sys.stderr)
+        print(f"Starting vulnerability scan of {target}", file=sys.stderr)
         
-        # FTP専用のスキャンコマンド
+        # nmapコマンドの設定
         cmd = [
             "nmap",
-            "-p21",     # FTPポート
-            "-sV",      # バージョン検出
-            "-sC",      # デフォルトスクリプト
-            "--script=ftp-*",  # FTP関連の全スクリプト
-            "-T4",
-            target
+            "-sV",           # バージョン検出
+            "-sC",           # デフォルトスクリプト
+            "--version-intensity=9",  # 最大強度のバージョン検出
+            "-Pn",          # ホスト検出をスキップ
+            "-T4"           # タイミングテンプレート
         ]
+        
+        # ポート指定がある場合
+        if ports:
+            cmd.extend(["-p", ports])
+        
+        cmd.append(target)
         
         print(f"Command: {' '.join(cmd)}", file=sys.stderr)
         
@@ -78,12 +83,40 @@ async def scan_ftp(target: str) -> str:
         except asyncio.TimeoutError:
             process.terminate()
             await process.wait()
-            return "スキャンが5分でタイムアウトしました"
+            return "スキャンが10分でタイムアウトしました"
         
         if process.returncode == 0:
             scan_output = stdout.decode()
-            result = f"FTPスキャン結果:\n{scan_output}"
-            result += "\n\n注意: 検出されたFTPサービスの脆弱性情報については、Claude Desktopに問い合わせてください。"
+            
+            # 結果の解析
+            findings = []
+            
+            # サービスとバージョンの検出パターン
+            service_patterns = {
+                "ftp": r"(\d+)/tcp\s+open\s+ftp\s+([^\s]+)\s+([^\s]+)",
+                "ssh": r"(\d+)/tcp\s+open\s+ssh\s+([^\s]+)\s+([^\s]+)",
+                "http": r"(\d+)/tcp\s+open\s+http\s+([^\s]+)\s+([^\s]+)"
+            }
+            
+            for service_type, pattern in service_patterns.items():
+                matches = re.finditer(pattern, scan_output)
+                for match in matches:
+                    port, service_name, version = match.groups()
+                    
+                    # バージョン情報のクリーンアップ
+                    version = version.lower().strip()
+                    service_name = service_name.lower().strip()
+                    
+                    finding = f"\nポート {port}/tcp - {service_name} {version}"
+                    findings.append(finding)
+            
+            if findings:
+                result = "検出されたサービス:\n" + "\n".join(findings)
+                result += "\n\n元のnmapスキャン結果:\n" + scan_output
+                result += "\n\n注意: 検出されたサービスの脆弱性情報については、Claude Desktopに問い合わせてください。"
+            else:
+                result = "サービスは検出されませんでした。\n\nスキャン結果:\n" + scan_output
+            
             return result
         else:
             return f"スキャンに失敗しました:\nSTDOUT: {stdout.decode()}\nSTDERR: {stderr.decode()}"
@@ -152,15 +185,15 @@ async def scan_with_options(target: str, ports: str = None, version: bool = Fals
         except asyncio.TimeoutError:
             process.terminate()
             await process.wait()
-            return "Scan timed out after 5 minutes"
+            return "スキャンが5分でタイムアウトしました"
         
         if process.returncode == 0:
-            return f"Scan completed successfully:\n{stdout.decode()}"
+            return f"スキャンが完了しました:\n{stdout.decode()}"
         else:
-            return f"Scan failed:\nSTDOUT: {stdout.decode()}\nSTDERR: {stderr.decode()}"
+            return f"スキャンに失敗しました:\nSTDOUT: {stdout.decode()}\nSTDERR: {stderr.decode()}"
             
     except Exception as e:
-        return f"Error during scan: {str(e)}"
+        return f"スキャン中にエラーが発生しました: {str(e)}"
 
 @mcp.tool()
 async def simple_scan(target: str) -> str:
@@ -186,15 +219,15 @@ async def simple_scan(target: str) -> str:
         except asyncio.TimeoutError:
             process.terminate()
             await process.wait()
-            return "Scan timed out after 5 minutes"
+            return "スキャンが5分でタイムアウトしました"
         
         if process.returncode == 0:
-            return f"Scan completed successfully:\n{stdout.decode()}"
+            return f"スキャンが完了しました:\n{stdout.decode()}"
         else:
-            return f"Scan failed:\nSTDOUT: {stdout.decode()}\nSTDERR: {stderr.decode()}"
+            return f"スキャンに失敗しました:\nSTDOUT: {stdout.decode()}\nSTDERR: {stderr.decode()}"
             
     except Exception as e:
-        return f"Error during scan: {str(e)}"
+        return f"スキャン中にエラーが発生しました: {str(e)}"
 
 @mcp.tool()
 async def quick_ping(target: str) -> str:
@@ -220,99 +253,19 @@ async def quick_ping(target: str) -> str:
         except asyncio.TimeoutError:
             process.terminate()
             await process.wait()
-            return "Ping timed out after 30 seconds"
+            return "Pingが30秒でタイムアウトしました"
         
         if process.returncode == 0:
-            return f"Ping successful:\n{stdout.decode()}"
+            return f"Ping成功:\n{stdout.decode()}"
         else:
-            return f"Ping failed:\nSTDOUT: {stdout.decode()}\nSTDERR: {stderr.decode()}"
+            return f"Ping失敗:\nSTDOUT: {stdout.decode()}\nSTDERR: {stderr.decode()}"
             
     except Exception as e:
-        return f"Error during ping: {str(e)}"
-
-@mcp.tool()
-async def scan_service_vulnerabilities(target: str, ports: str = None) -> str:
-    """指定されたポートのサービスバージョンを検出します"""
-    try:
-        print(f"Starting vulnerability scan of {target}", file=sys.stderr)
-        
-        # nmapコマンドの設定
-        cmd = [
-            "nmap",
-            "-sV",           # バージョン検出
-            "-sC",           # デフォルトスクリプト
-            "--version-intensity=9",  # 最大強度のバージョン検出
-            "-Pn",          # ホスト検出をスキップ
-            "-T4"           # タイミングテンプレート
-        ]
-        
-        # ポート指定がある場合
-        if ports:
-            cmd.extend(["-p", ports])
-        
-        cmd.append(target)
-        
-        print(f"Command: {' '.join(cmd)}", file=sys.stderr)
-        
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        try:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), 
-                timeout=600  # 10分のタイムアウト
-            )
-        except asyncio.TimeoutError:
-            process.terminate()
-            await process.wait()
-            return "スキャンが10分でタイムアウトしました"
-        
-        if process.returncode == 0:
-            scan_output = stdout.decode()
-            
-            # 結果の解析
-            findings = []
-            
-            # サービスとバージョンの検出パターン
-            service_patterns = {
-                "ftp": r"(\d+)/tcp\s+open\s+ftp\s+([^\s]+)\s+([^\s]+)",
-                "ssh": r"(\d+)/tcp\s+open\s+ssh\s+([^\s]+)\s+([^\s]+)",
-                "http": r"(\d+)/tcp\s+open\s+http\s+([^\s]+)\s+([^\s]+)"
-            }
-            
-            for service_type, pattern in service_patterns.items():
-                matches = re.finditer(pattern, scan_output)
-                for match in matches:
-                    port, service_name, version = match.groups()
-                    
-                    # バージョン情報のクリーンアップ
-                    version = version.lower().strip()
-                    service_name = service_name.lower().strip()
-                    
-                    finding = f"\nポート {port}/tcp - {service_name} {version}"
-                    findings.append(finding)
-            
-            if findings:
-                result = "検出されたサービス:\n" + "\n".join(findings)
-                result += "\n\n元のnmapスキャン結果:\n" + scan_output
-                result += "\n\n注意: 検出されたサービスの脆弱性情報については、Claude Desktopに問い合わせてください。"
-            else:
-                result = "サービスは検出されませんでした。\n\nスキャン結果:\n" + scan_output
-            
-            return result
-        else:
-            return f"スキャンに失敗しました:\nSTDOUT: {stdout.decode()}\nSTDERR: {stderr.decode()}"
-            
-    except Exception as e:
-        return f"スキャン中にエラーが発生しました: {str(e)}"
+        return f"Ping中にエラーが発生しました: {str(e)}"
 
 if __name__ == "__main__":
     try:
         print("Starting FastMCP server...", file=sys.stderr)
-        # FastMCPサーバーの実行
         mcp.run()
     except Exception as e:
         print(f"Error starting server: {e}", file=sys.stderr)

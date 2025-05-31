@@ -6,7 +6,6 @@ Recon MCPは、Claude DesktopとDockerを活用した高度なネットワーク
 
 - Claude Desktopとの統合による高度な脆弱性分析
 - Dockerコンテナによる安全で効率的なスキャン環境
-- 自動的なDockerセットアップと管理
 - 包括的なポートスキャンとサービス検出
 - 日本語での詳細なレポート出力
 
@@ -14,7 +13,7 @@ Recon MCPは、Claude DesktopとDockerを活用した高度なネットワーク
 
 - Windows 10/11
 - Claude Desktop
-- Docker Desktop（自動的にインストールされます）
+- Docker Desktop
 - Python 3.11以上
 
 ## セットアップ
@@ -24,44 +23,42 @@ Recon MCPは、Claude DesktopとDockerを活用した高度なネットワーク
 ```bash
 git clone https://github.com/yourusername/recon-mcp.git
 cd recon-mcp
-```
+``
+3. 
+C:\Users\<ユーザー名>\AppData\Roaming\Claude
+claude_desktop_config.jsonを配置
 
 ## 使用方法
 
 ### 基本的な使用
 
 1. Claude Desktopを起動
-2. 以下のコマンドを入力するだけで、必要なDockerコンテナが自動的に構築・起動されます：
+2. 以下のような形式でスキャンを実行:
 
 ```
-@nmap-scanner test_connection
+<target_ip>をスキャンして
 ```
 
-### スキャンコマンド
+### スキャンオプション
 
-1. 接続テスト:
+1. シンプルなスキャン:
 ```
-@nmap-scanner test_connection
-```
-
-2. シンプルなスキャン:
-```
-@nmap-scanner simple_scan <target_ip>
+<target_ip>の基本的なポートスキャンをして
 ```
 
-3. FTP専用スキャン:
+2. 詳細なバージョンスキャン:
 ```
-@nmap-scanner scan_ftp <target_ip>
+<target_ip>のサービスバージョンを詳しく調べて
 ```
 
-4. カスタムポートスキャン:
+3. 特定ポートのスキャン:
 ```
-@nmap-scanner scan_service_vulnerabilities <target_ip> "80,443,8080"
+<target_ip>の80番と443番ポートをスキャンして
 ```
 
 ### 脆弱性情報の取得
 
-スキャン結果に基づいて、以下のように Claude Desktop に質問することで詳細な脆弱性情報を取得できます：
+スキャン結果に基づいて、以下のように質問することで詳細な脆弱性情報を取得できます：
 
 1. 一般的な質問:
 ```
@@ -71,7 +68,6 @@ cd recon-mcp
 2. 具体的な質問例:
 ```
 Apache 2.4.49の脆弱性とエクスプロイト方法、対策について教えてください
-検出されたvsftpdの脆弱性対策について教えてください
 ```
 
 ## セキュリティ注意事項
