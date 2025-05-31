@@ -24,9 +24,10 @@ OUTPUT_DIR.mkdir(exist_ok=True)
 DEFAULT_OPTIONS = [
     "-T5",        # 最も積極的なタイミングテンプレート
     "-Pn",        # ホスト検出をスキップ
-    "--min-rate=300",  # 1秒あたり最低300パケット
-    "--max-retries=2", # 再試行回数を2回に制限
-    "--host-timeout=30m"  # ホストあたりの最大タイムアウト30分
+    "--min-rate=1000",  # 1秒あたり最低1000パケット
+    "--max-retries=1", # 再試行回数を1回に制限
+    "--host-timeout=15m",  # ホストあたりの最大タイムアウト15分
+    "--version-intensity=2"  # バージョン検出の強度を軽めに
 ]
 
 # XMLパーサーの設定
@@ -46,9 +47,9 @@ async def test_connection() -> str:
 async def test_nmap() -> str:
     """nmapコマンドが実行可能かテストします"""
     try:
-        # nmapのバージョンを確認
+        # nmapのバージョンを確認（sudoなし）
         process = await asyncio.create_subprocess_exec(
-            "sudo", "nmap", "--version",
+            "nmap", "--version",
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE
         )
@@ -67,8 +68,8 @@ async def simple_scan(target: str) -> str:
     try:
         print(f"Starting scan of {target}", file=sys.stderr)
         
-        # 最もシンプルなnmapコマンド
-        cmd = ["sudo", "nmap", "-Pn", "-F", target]
+        # 最適化されたnmapコマンド
+        cmd = ["nmap", "-Pn", "-F", "-T5", "--min-rate=1000", target]
         print(f"Command: {' '.join(cmd)}", file=sys.stderr)
         
         process = await asyncio.create_subprocess_exec(
