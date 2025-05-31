@@ -8,6 +8,87 @@ import urllib.parse
 mcp = FastMCP("nmap-scanner")
 
 @mcp.tool()
+async def subdomain_scan(domain: str) -> str:
+    """ドメインのサブドメインを探索します"""
+    try:
+        # ドメインの検証
+        if not domain or "." not in domain:
+            return "無効なドメイン形式です"
+
+        cmd = [
+            "nmap",
+            "--script", "dns-brute",  # DNSブルートフォーススクリプト
+            "-Pn",                    # ホスト検出をスキップ
+            "-v",                     # 詳細出力
+            domain
+        ]
+        
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), 
+                timeout=300  # 5分
+            )
+        except asyncio.TimeoutError:
+            process.terminate()
+            await process.wait()
+            return "スキャンがタイムアウトしました"
+        
+        if process.returncode == 0:
+            return stdout.decode()
+        else:
+            return f"スキャンに失敗しました:\n{stderr.decode()}"
+            
+    except Exception as e:
+        return f"エラー: {str(e)}"
+
+@mcp.tool()
+async def dirb_scan(url: str) -> str:
+    """WEBサイトの隠しオブジェクトを検索します"""
+    try:
+        # URLの検証
+        parsed_url = urllib.parse.urlparse(url)
+        if not parsed_url.scheme or not parsed_url.netloc:
+            return "無効なURL形式です"
+
+        cmd = [
+            "dirb",
+            url,
+            "/usr/share/dirb/wordlists/common.txt",  # 基本的なワードリスト
+            "-w",          # エラーを表示しない
+            "-N", "404",   # 404を除外
+        ]
+        
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), 
+                timeout=600  # 10分
+            )
+        except asyncio.TimeoutError:
+            process.terminate()
+            await process.wait()
+            return "スキャンがタイムアウトしました"
+        
+        if process.returncode == 0:
+            return stdout.decode()
+        else:
+            return f"スキャンに失敗しました:\n{stderr.decode()}"
+            
+    except Exception as e:
+        return f"エラー: {str(e)}"
+
+@mcp.tool()
 async def scan_service_vulnerabilities(target: str, ports: str = None) -> str:
     """指定されたポートのサービスバージョンを検出します"""
     try:
@@ -106,47 +187,6 @@ async def quick_ping(target: str) -> str:
             return stdout.decode()
         else:
             return f"Ping失敗:\n{stderr.decode()}"
-            
-    except Exception as e:
-        return f"エラー: {str(e)}"
-
-@mcp.tool()
-async def dirb_scan(url: str) -> str:
-    """WEBサイトの隠しオブジェクトを検索します"""
-    try:
-        # URLの検証
-        parsed_url = urllib.parse.urlparse(url)
-        if not parsed_url.scheme or not parsed_url.netloc:
-            return "無効なURL形式です"
-
-        cmd = [
-            "dirb",
-            url,
-            "/usr/share/dirb/wordlists/common.txt",  # 基本的なワードリスト
-            "-w",          # エラーを表示しない
-            "-N", "404",   # 404を除外
-        ]
-        
-        process = await asyncio.create_subprocess_exec(
-            *cmd,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        try:
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), 
-                timeout=600  # 10分
-            )
-        except asyncio.TimeoutError:
-            process.terminate()
-            await process.wait()
-            return "スキャンがタイムアウトしました"
-        
-        if process.returncode == 0:
-            return stdout.decode()
-        else:
-            return f"スキャンに失敗しました:\n{stderr.decode()}"
             
     except Exception as e:
         return f"エラー: {str(e)}"
