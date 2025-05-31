@@ -63,13 +63,26 @@ async def test_nmap() -> str:
         return f"Error testing nmap: {str(e)}"
 
 @mcp.tool()
-async def simple_scan(target: str) -> str:
-    """シンプルなnmapスキャンを実行します"""
+async def scan_with_options(target: str, ports: str = None, version: bool = False) -> str:
+    """指定されたオプションでnmapスキャンを実行します"""
     try:
         print(f"Starting scan of {target}", file=sys.stderr)
         
-        # 最適化されたnmapコマンド
-        cmd = ["nmap", "-Pn", "-F", "-T5", "--min-rate=1000", target]
+        # 基本コマンド
+        cmd = ["nmap", "-Pn"]
+        
+        # ポート指定がある場合
+        if ports:
+            cmd.extend(["-p", ports])
+        
+        # バージョン検出
+        if version:
+            cmd.append("-sV")
+            cmd.append("--version-intensity=2")
+        
+        # ターゲットを追加
+        cmd.append(target)
+        
         print(f"Command: {' '.join(cmd)}", file=sys.stderr)
         
         process = await asyncio.create_subprocess_exec(
@@ -78,7 +91,40 @@ async def simple_scan(target: str) -> str:
             stderr=asyncio.subprocess.PIPE
         )
         
-        # wait_for を使用してタイムアウトを制御
+        try:
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), 
+                timeout=300  # 5分のタイムアウト
+            )
+        except asyncio.TimeoutError:
+            process.terminate()
+            await process.wait()
+            return "Scan timed out after 5 minutes"
+        
+        if process.returncode == 0:
+            return f"Scan completed successfully:\n{stdout.decode()}"
+        else:
+            return f"Scan failed:\nSTDOUT: {stdout.decode()}\nSTDERR: {stderr.decode()}"
+            
+    except Exception as e:
+        return f"Error during scan: {str(e)}"
+
+@mcp.tool()
+async def simple_scan(target: str) -> str:
+    """シンプルなnmapスキャンを実行します"""
+    try:
+        print(f"Starting scan of {target}", file=sys.stderr)
+        
+        # 最もシンプルなnmapコマンド
+        cmd = ["nmap", "-Pn", "-F", target]
+        print(f"Command: {' '.join(cmd)}", file=sys.stderr)
+        
+        process = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE
+        )
+        
         try:
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(), 
