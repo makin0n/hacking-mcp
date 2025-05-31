@@ -1,0 +1,16 @@
+{
+  "mcpServers": {
+    "recon-mcp": {
+      "command": "docker",
+      "args": [
+        "run",
+        "--rm",
+        "-p", "8000:8000",
+        "recon-mcp:latest"
+      ],
+      "env": {
+        "LOG_LEVEL": "INFO"
+      }
+    }
+  }
+}

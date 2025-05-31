@@ -1,0 +1,6 @@
+mcp>=1.0.0
+python-nmap>=0.7.1
+pydantic>=2.0.0
+asyncio-throttle>=1.0.2
+ipaddress
+validators>=0.22.0
