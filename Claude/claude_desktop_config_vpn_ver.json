@@ -1,0 +1,15 @@
+{
+  "mcpServers": {
+    "recon-scanner": {
+      "command": "docker",
+      "args": [
+        "run", "--rm", "-i",
+        "--cap-add=NET_ADMIN",
+        "--device=/dev/net/tun",
+        "-e", "USE_VPN=true",
+        "-v", "./vpn:/vpn:ro",
+        "recon-mcp"
+      ]
+    }
+  }
+}

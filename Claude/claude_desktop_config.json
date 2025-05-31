@@ -1,13 +1,8 @@
 {
   "mcpServers": {
-    "nmap-scanner": {
+    "recon-scanner": {
       "command": "docker",
-      "args": [
-        "run",
-        "--rm",
-        "-i",
-        "recon-mcp"
-      ]
+      "args": ["run", "--rm", "-i", "recon-mcp"]
     }
   }
 }
