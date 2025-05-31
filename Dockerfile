@@ -8,6 +8,10 @@ RUN apk update && apk add --no-cache \
     curl \
     sudo \
     shadow \
+    libxml2-dev \
+    libxslt-dev \
+    gcc \
+    musl-dev \
     && rm -rf /var/cache/apk/*
 
 # 非rootユーザーの作成
@@ -25,7 +29,10 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # アプリケーションファイルのコピー
-COPY . .
+COPY nmap_service.py .
+
+# scan_resultsディレクトリの作成
+RUN mkdir -p scan_results
 
 # 権限の設定
 RUN chown -R recon:recon /app
@@ -33,12 +40,5 @@ RUN chown -R recon:recon /app
 # 非rootユーザーに切り替え
 USER recon
 
-# ポートの公開（削除）
-# EXPOSE 8000
-
-# ヘルスチェック（削除）
-# HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-#     CMD curl -f http://localhost:8000/health || exit 1
-
 # アプリケーションの実行
-CMD ["python", "enhanced_mcp_server.py"]
+CMD ["python", "nmap_service.py"]
