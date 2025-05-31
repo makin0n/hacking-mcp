@@ -1,0 +1,10 @@
+{
+  "mcpServers": {
+      "nmap-scanner": {
+          "command": "python",
+          "args": [
+              "<nmap_service.pyがおいてあるパス>"
+          ]
+      }
+  }
+}

@@ -1,2 +1,35 @@
 # recon-mcp
-recon-mcp is a conversational reconnaissance interface and MCP server.
+
+このプロジェクトは、MCPのリコンシステムです。
+
+## 必要条件
+
+- Python 3.13
+- uv
+
+## インストール方法
+
+```bash
+# リポジトリのクローン
+git clone https://github.com/naoki/recon-mcp.git
+cd recon-mcp
+
+# 依存関係のインストール
+pip install uv
+```
+
+## 使用方法
+
+（使用方法の詳細は、プロジェクトの具体的な機能が実装された後に追加します）
+
+## ライセンス
+
+このプロジェクトはMITライセンスの下で公開されています。
+
+## コントリビューション
+
+プロジェクトへの貢献は大歓迎です。プルリクエストを送る前に、既存の問題やディスカッションをご確認ください。
+
+## 連絡先
+
+問題や提案がありましたら、GitHubのIssueを作成してください。

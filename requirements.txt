@@ -1,0 +1,5 @@
+anthropic==0.18.1
+mcp==1.9.2
+aiohttp==3.9.3
+lxml==5.4.0
+mcp-sdk>=0.1.0 
