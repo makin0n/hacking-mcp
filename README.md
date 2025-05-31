@@ -1,6 +1,8 @@
 # Recon MCP - ネットワークスキャンツール
 
-Recon MCPは、Claude DesktopとDockerを活用した高度なネットワークスキャンツールです。nmapを使用してターゲットシステムのスキャンを行い、Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供します。
+Recon MCPは、Claude DesktopとDockerを活用した高度なネットワークスキャンツールです。
+nmapを使用してターゲットシステムのスキャンとWEBサイトの隠しディレクトリを探索し、
+Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供します。
 
 ## 特徴
 
