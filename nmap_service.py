@@ -89,15 +89,12 @@ async def dirb_scan(url: str) -> str:
         return f"エラー: {str(e)}"
 
 @mcp.tool()
-async def scan_service_vulnerabilities(target: str, ports: str = None) -> str:
-    """指定されたポートのサービスバージョンを検出します"""
+async def scan_ports(target: str, ports: str = None) -> str:
+    """指定されたポートの基本的なスキャンを実行します"""
     try:
         # nmapコマンドの設定
         cmd = [
             "nmap",
-            "-sV",           # バージョン検出
-            "-sC",           # デフォルトスクリプト
-            "--version-intensity=9",  # 最大強度のバージョン検出
             "-Pn",          # ホスト検出をスキップ
             "-T4"           # タイミングテンプレート
         ]
