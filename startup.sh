@@ -1,101 +1,71 @@
 #!/bin/bash
 
-echo "=== Recon Scanner MCP Server ==="
-echo "Initializing..."
+# JSON-RPC 2.0形式でログを出力する関数
+log_message() {
+    local msg=$1
+    echo "{\"jsonrpc\":\"2.0\",\"method\":\"log\",\"params\":{\"message\":\"$msg\"}}"
+}
+
+# 標準出力のバッファリングを無効化
+export PYTHONUNBUFFERED=1
+
+log_message "Recon Scanner MCP Server initializing..."
 
 # VPN設定の確認と接続
 if [ "$USE_VPN" = "true" ]; then
-    echo "VPN mode enabled - checking configuration..."
+    log_message "VPN mode enabled - checking configuration..."
     
     # VPN設定ファイルの存在確認
     if [ -f "$VPN_CONFIG_PATH" ]; then
-        echo "✓ VPN config found: $VPN_CONFIG_PATH"
+        log_message "VPN config found: $VPN_CONFIG_PATH"
         
         # TUNデバイスの作成（権限が必要な場合）
         if [ ! -c /dev/net/tun ]; then
-            echo "Creating TUN device..."
-            sudo mknod /dev/net/tun c 10 200 2>/dev/null || echo "TUN device creation skipped (may already exist)"
+            log_message "Creating TUN device..."
+            sudo mknod /dev/net/tun c 10 200 2>/dev/null || log_message "TUN device creation skipped"
         fi
         
         # 認証ファイルの確認
         AUTH_OPTION=""
         if [ -f "$VPN_AUTH_PATH" ]; then
-            echo "✓ VPN auth file found"
+            log_message "VPN auth file found"
             AUTH_OPTION="--auth-user-pass $VPN_AUTH_PATH"
+        fi
+        
+        # OpenVPN接続の開始
+        log_message "Starting OpenVPN connection..."
+        openvpn --config "$VPN_CONFIG_PATH" $AUTH_OPTION --daemon
+        
+        # 接続確認のための待機
+        sleep 5
+        if ping -c 1 8.8.8.8 >/dev/null 2>&1; then
+            log_message "VPN connection established"
         else
-            echo "⚠ VPN auth file not found - interactive auth may be required"
+            log_message "VPN connection failed"
         fi
-        
-        echo "Starting VPN connection..."
-        sudo /usr/sbin/openvpn \
-            --config "$VPN_CONFIG_PATH" \
-            $AUTH_OPTION \
-            --daemon \
-            --log /tmp/openvpn.log \
-            --writepid /tmp/openvpn.pid
-        
-        # VPN接続の確立を待機
-        echo "Waiting for VPN connection..."
-        for i in {1..30}; do
-            if pgrep -f openvpn > /dev/null; then
-                sleep 2
-                # 外部接続テスト
-                if curl -s --connect-timeout 10 --max-time 15 https://ipinfo.io/ip > /tmp/current_ip.txt 2>/dev/null; then
-                    CURRENT_IP=$(cat /tmp/current_ip.txt)
-                    echo "✓ VPN connected successfully!"
-                    echo "✓ Public IP: $CURRENT_IP"
-                    break
-                fi
-            fi
-            echo "  Waiting... ($i/30)"
-            sleep 2
-        done
-        
-        # 接続状況の最終確認
-        if ! pgrep -f openvpn > /dev/null; then
-            echo "❌ VPN connection failed!"
-            echo "OpenVPN log:"
-            cat /tmp/openvpn.log 2>/dev/null || echo "No log available"
-            echo ""
-            echo "⚠ Continuing without VPN..."
-        fi
-        
     else
-        echo "❌ VPN config file not found: $VPN_CONFIG_PATH"
-        echo "⚠ Continuing without VPN..."
-        echo ""
-        echo "To use VPN functionality:"
-        echo "  1. Mount your VPN config: -v /path/to/vpn:/vpn"
-        echo "  2. Set environment: -e USE_VPN=true"
-        echo "  3. Add capabilities: --cap-add=NET_ADMIN --device=/dev/net/tun"
+        log_message "VPN config not found at: $VPN_CONFIG_PATH"
     fi
-    
-else
-    echo "VPN mode disabled - running in standard mode"
-    echo ""
-    echo "To enable VPN mode:"
-    echo "  docker run -e USE_VPN=true --cap-add=NET_ADMIN --device=/dev/net/tun -v /path/to/vpn:/vpn ..."
 fi
 
-echo ""
-echo "=== Network Information ==="
-# 現在のネットワーク状況を表示
-if command -v curl > /dev/null 2>&1; then
-    if CURRENT_IP=$(curl -s --connect-timeout 5 https://ipinfo.io/ip 2>/dev/null); then
-        echo "Public IP: $CURRENT_IP"
-    else
-        echo "Public IP: Unable to detect (network issue or no internet)"
-    fi
-else
-    echo "Public IP: curl not available"
+# ネットワーク情報の表示
+log_message "=== Network Information ==="
+
+# パブリックIPアドレスの取得
+PUBLIC_IP=$(curl -s ifconfig.me 2>/dev/null || echo "Unable to detect")
+log_message "Public IP: $PUBLIC_IP"
+
+# ローカルIPアドレスの取得（Alpine Linux用に修正）
+LOCAL_IP=$(ip addr show | awk '/inet / && !/127.0.0.1/ {gsub(/\/.*/, "", $2); print $2}' | head -n1)
+if [ -z "$LOCAL_IP" ]; then
+    LOCAL_IP="Unable to detect"
 fi
+log_message "Local IP: $LOCAL_IP"
 
-echo "Local IP: $(hostname -i 2>/dev/null || echo 'Not available')"
-echo ""
+# メインアプリケーションの起動
+log_message "Starting Advanced Recon Scanner MCP server..."
+log_message "Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer"
+log_message "Features: Network scanning, Web analysis, DNS investigation, Service security analysis"
 
-echo "=== Starting MCP Server ==="
-echo "Ready to accept connections..."
-echo ""
-
-# メインアプリケーションを起動
-exec python main.py
+# Pythonアプリケーションの実行（バッファリング無効化）
+python -u main.py

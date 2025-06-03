@@ -5,7 +5,6 @@ RUN apk update && apk add --no-cache \
     nmap \
     nmap-scripts \
     bind-tools \
-    dig \
     curl \
     sudo \
     shadow \
@@ -14,6 +13,7 @@ RUN apk update && apk add --no-cache \
     gcc \
     musl-dev \
     bash \
+    dos2unix \
     && rm -rf /var/cache/apk/*
 
 # OpenVPN関連パッケージ（オプション機能用）
@@ -50,7 +50,7 @@ RUN mkdir -p scan_results
 
 # スタートアップスクリプトをコピー
 COPY startup.sh .
-RUN chmod +x startup.sh
+RUN dos2unix startup.sh && chmod +x startup.sh
 
 # 権限の設定
 RUN chown -R recon:recon /app
@@ -64,4 +64,4 @@ ENV VPN_CONFIG_PATH=/vpn/client.ovpn
 ENV VPN_AUTH_PATH=/vpn/auth.txt
 
 # スタートアップスクリプトを実行
-CMD ["./startup.sh"]
+CMD ["/bin/bash", "./startup.sh"]
