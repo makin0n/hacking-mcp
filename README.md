@@ -48,9 +48,16 @@ C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
 ### VPNのオンオフ
 Hack The BoxやTry Hack Meといった教育用環境での使用のため、VPNの使用有無を切り替えることができます。
 VPNを使用する場合は、以下を実施してから使用してください。
+
 1. プロジェクトフォルダ（recon-mcp）内にvpnフォルダを作成
-2. vpnフォルダ内に、自分用に発行された.ovpnファイルを配置
-3. Claude Desktopに読み込ませる設定ファイルは、claude_desktop_config_vpn_ver.jsonを使用
+2. vpnフォルダ内に、自分用に発行された.ovpnファイルを配置（例：test.ovpn）
+3. Claude Desktopに読み込ませる設定ファイルは、`claude_desktop_config_vpn_ver.json`を使用
+4. 設定ファイル内のVPN設定ファイルパスが正しいことを確認（`VPN_CONFIG_PATH=/vpn/test.ovpn`）
+
+注意：
+- VPN設定ファイルは読み取り専用（:ro）でマウントされます
+- 認証情報が必要な場合は、vpnフォルダ内にauth.txtを作成し、設定ファイルに`VPN_AUTH_PATH=/vpn/auth.txt`を追加してください
+- VPN接続の状態は、スキャン実行時に自動的に確認されます
 
 ### スキャンの種類
 
