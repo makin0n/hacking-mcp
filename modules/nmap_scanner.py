@@ -8,9 +8,7 @@ class NmapScanner:
     def __init__(self):
         self.default_options = [
             "-T4",
-            "-Pn", 
-            "--min-rate=300",
-            "--max-retries=2"
+            "-Pn"
         ]
     
     def _validate_target(self, target: str) -> bool:
@@ -56,7 +54,7 @@ class NmapScanner:
                 # 安全なオプションのみ許可
                 safe_options = []
                 for opt in options:
-                    if re.match(r'^(-p[\d,-]+|-sV|-sC|-A|-T\d|-Pn|-F|--min-rate=\d+)$', opt):
+                    if re.match(r'^(-p[\d,-]+|-sV|-sC|-A|-T\d|-Pn|-F)$', opt):
                         safe_options.append(opt)
                 cmd.extend(safe_options)
             cmd.append(target)
@@ -166,6 +164,46 @@ class NmapScanner:
             return "Port scan timed out after 5 minutes"
         except Exception as e:
             return f"Error during port scan: {str(e)}"
+    
+    async def run_nse_script(self, target: str, script_name: str, ports: Optional[str] = None) -> str:
+        """NSEスクリプトを実行"""
+        if not self._validate_target(target):
+            return "Error: Invalid target format"
+        
+        try:
+            cmd = [
+                "sudo", "nmap", "-oX", "-",
+                "--script", script_name,
+                "-Pn", "-T4"
+            ]
+            
+            if ports:
+                cmd.append(f"-p{ports}")
+            
+            cmd.append(target)
+            
+            print(f"Executing NSE script: {' '.join(cmd)}", file=sys.stderr)
+            
+            process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await asyncio.wait_for(
+                process.communicate(), 
+                timeout=300  # 5分
+            )
+            
+            if process.returncode == 0:
+                return self._parse_xml_output(stdout.decode(), detailed=True)
+            else:
+                return f"NSE script execution failed: {stderr.decode()}"
+                
+        except asyncio.TimeoutError:
+            return "NSE script execution timed out after 5 minutes"
+        except Exception as e:
+            return f"Error during NSE script execution: {str(e)}"
     
     def _parse_xml_output(self, xml_data: str, detailed: bool = False) -> str:
         """XML出力を解析してフォーマット"""

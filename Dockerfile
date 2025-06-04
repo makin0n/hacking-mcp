@@ -44,6 +44,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # アプリケーションファイルのコピー
 COPY main.py .
 COPY modules/ ./modules/
+COPY nse_scripts/ ./nse_scripts/
 
 # scan_resultsディレクトリの作成
 RUN mkdir -p scan_results
