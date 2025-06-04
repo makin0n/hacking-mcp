@@ -51,7 +51,7 @@ class NmapScanner:
             return "Error: Invalid target format"
         
         try:
-            cmd = ["sudo", "nmap", "-oX", "-"] + self.default_options + ["-F"]
+            cmd = ["sudo", "nmap", "-oX", "-"] + self.default_options
             if options:
                 # 安全なオプションのみ許可
                 safe_options = []
