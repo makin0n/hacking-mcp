@@ -99,7 +99,8 @@ class NmapScanner:
             cmd = [
                 "sudo", "nmap", "-oX", "-",
                 f"-p{','.join(open_ports)}",
-                "-sV", "--version-intensity=4",
+                "-sV",                       # バージョン検出
+                "--version-intensity=4",     # バージョン検出の強度
                 "-Pn", "-T4", target
             ]
             
