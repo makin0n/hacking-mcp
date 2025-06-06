@@ -1,32 +1,35 @@
-FROM python:3.11-alpine
+FROM python:3.11-slim
 
 # 基本パッケージのインストール
-RUN apk update && apk add --no-cache \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     nmap \
-    nmap-scripts \
-    bind-tools \
+    dnsutils \
     curl \
     sudo \
-    shadow \
     libxml2-dev \
     libxslt-dev \
     gcc \
-    musl-dev \
     bash \
     dos2unix \
-    && rm -rf /var/cache/apk/*
+    libpcap0.8 \
+    libssl-dev \
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # OpenVPN関連パッケージ（オプション機能用）
-RUN apk add --no-cache \
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
     openvpn \
     iptables \
-    && rm -rf /var/cache/apk/*
+    && rm -rf /var/lib/apt/lists/* \
+    && apt-get clean
 
 # TUNデバイスの準備（VPN使用時のみ必要）
 RUN mkdir -p /dev/net
 
 # 非rootユーザーの作成
-RUN adduser -D -s /bin/sh recon
+RUN useradd -m -s /bin/bash recon
 
 # sudoの設定
 RUN echo 'recon ALL=(ALL) NOPASSWD: /usr/bin/nmap' >> /etc/sudoers && \

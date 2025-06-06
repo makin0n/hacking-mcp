@@ -82,27 +82,35 @@ class NmapScanner:
         except Exception as e:
             return f"Error during scan: {str(e)}"
     
-    async def detailed_scan(self, target: str) -> str:
-        """詳細スキャン（バージョン検出付き）"""
+    async def detailed_scan(self, target: str, ports: Optional[str] = None) -> str:
+        """詳細スキャン（バージョン検出付き）
+        
+        Args:
+            target: スキャン対象のホスト/ネットワーク
+            ports: スキャン対象のポート（指定がない場合は1-1000をスキャン）
+        """
         if not self._validate_target(target):
             return "Error: Invalid target format"
         
-        # まず基本スキャンで開放ポートを特定
-        basic_result = await self.basic_scan(target)
-        open_ports = self._extract_open_ports_from_result(basic_result)
-        
-        if not open_ports:
-            return f"Basic scan completed but no open ports found:\n{basic_result}"
-        
-        # 開放ポートのみを対象に詳細スキャン
         try:
             cmd = [
                 "sudo", "nmap", "-oX", "-",
-                f"-p{','.join(open_ports)}",
                 "-sV",                       # バージョン検出
-                "--version-intensity=4",     # バージョン検出の強度
-                "-Pn", "-T4", target
+                "--version-intensity=3",     # バージョン検出の強度を3に下げる
+                "-Pn", "-T4"
             ]
+            
+            # ポート指定がある場合はそのポートのみをスキャン
+            if ports:
+                # ポート指定の簡単な検証
+                if not re.match(r'^[\d,-]+$', ports):
+                    return "Error: Invalid port specification. Use format like '80,443' or '1-1000'"
+                cmd.append(f"-p{ports}")
+            else:
+                # デフォルトで1-1000をスキャン
+                cmd.append("-p1-1000")
+            
+            cmd.append(target)
             
             print(f"Executing detailed scan: {' '.join(cmd)}", file=sys.stderr)
             
@@ -114,7 +122,7 @@ class NmapScanner:
             
             stdout, stderr = await asyncio.wait_for(
                 process.communicate(), 
-                timeout=600  # 10分
+                timeout=300  # タイムアウトを5分に短縮
             )
             
             if process.returncode == 0:
@@ -123,7 +131,7 @@ class NmapScanner:
                 return f"Detailed scan failed: {stderr.decode()}"
                 
         except asyncio.TimeoutError:
-            return "Detailed scan timed out after 10 minutes"
+            return "Detailed scan timed out after 5 minutes"
         except Exception as e:
             return f"Error during detailed scan: {str(e)}"
     
