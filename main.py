@@ -22,24 +22,26 @@ service_analyzer = ServiceAnalyzer()
 # =============================================================================
 
 @mcp.tool()
-async def nmap_basic_scan(target: str, options: Optional[List[str]] = None) -> str:
+async def nmap_basic_scan(target: str, options: Optional[List[str]] = None, use_nse: bool = False) -> str:
     """基本的なnmapスキャンを実行します
     
     Args:
         target: スキャン対象のホスト/ネットワーク
         options: 追加のnmapオプション（例: ["-sV", "-p80,443"]）
+        use_nse: NSEスクリプトを使用するかどうか
     """
-    return await nmap_scanner.basic_scan(target, options)
+    return await nmap_scanner.basic_scan(target, options, use_nse)
 
 @mcp.tool()
-async def nmap_detailed_scan(target: str, ports: Optional[str] = None) -> str:
+async def nmap_detailed_scan(target: str, ports: Optional[str] = None, use_nse: bool = False) -> str:
     """詳細なnmapスキャン（バージョン検出付き）を実行します
     
     Args:
         target: スキャン対象のホスト/ネットワーク
         ports: スキャン対象のポート（指定がない場合は1-1000をスキャン）
+        use_nse: NSEスクリプトを使用するかどうか
     """
-    return await nmap_scanner.detailed_scan(target, ports)
+    return await nmap_scanner.detailed_scan(target, ports, use_nse)
 
 @mcp.tool()
 async def nmap_port_scan(target: str, ports: str) -> str:
@@ -50,6 +52,17 @@ async def nmap_port_scan(target: str, ports: str) -> str:
         ports: ポート指定（例: "80,443" または "1-1000"）
     """
     return await nmap_scanner.port_scan(target, ports)
+
+@mcp.tool()
+async def nmap_run_nse(target: str, script_name: str, ports: Optional[str] = None) -> str:
+    """指定したNSEスクリプトを実行します
+    
+    Args:
+        target: スキャン対象のホスト/ネットワーク
+        script_name: 実行するNSEスクリプト名（例: "http-title"）
+        ports: スキャン対象のポート（指定がない場合は全ポート）
+    """
+    return await nmap_scanner.run_nse_script(target, script_name, ports)
 
 # =============================================================================
 # Web関連ツール
@@ -377,6 +390,7 @@ async def scanner_status() -> str:
         "  • nmap_basic_scan: 基本ポートスキャン（高速）",
         "  • nmap_detailed_scan: 詳細スキャン（バージョン検出）",
         "  • nmap_port_scan: 指定ポートスキャン",
+        "  • nmap_run_nse: NSEスクリプト実行",
         "",
         "🌐 Web Application Testing (web_*):",
         "  • web_basic_info: Web基本情報取得",

@@ -14,6 +14,7 @@ RUN apt-get update && \
     dos2unix \
     libpcap0.8 \
     libssl-dev \
+    lua5.4 \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
 
