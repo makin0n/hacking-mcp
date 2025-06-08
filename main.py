@@ -7,6 +7,7 @@ from modules.nmap_scanner import NmapScanner
 from modules.web_scanner import WebScanner
 from modules.dns_scanner import DNSScanner
 from modules.service_analyzer import ServiceAnalyzer
+from modules.vuln_scanner import VulnerabilityScanner
 
 # 統合MCPサーバーの初期化
 mcp = FastMCP("recon-scanner")
@@ -16,6 +17,7 @@ nmap_scanner = NmapScanner()
 web_scanner = WebScanner()
 dns_scanner = DNSScanner()
 service_analyzer = ServiceAnalyzer()
+vuln_scanner = VulnerabilityScanner()
 
 # =============================================================================
 # Nmap関連ツール
@@ -369,6 +371,46 @@ async def web_security_audit(url: str) -> str:
     
     return "\n".join(results)
 
+@mcp.tool()
+async def scan_vulnerabilities(service_info: str) -> str:
+    """サービス情報に基づいて脆弱性をスキャンします
+    
+    Args:
+        service_info: サービス情報（例: "Apache 2.4.41"）
+    """
+    vulnerabilities = await vuln_scanner.scan(service_info)
+    return vuln_scanner.format_vulns(vulnerabilities)
+
+@mcp.tool()
+async def scan_service_vulnerabilities(nmap_output: str) -> str:
+    """nmapの出力からサービス情報を抽出し、各サービスの脆弱性をスキャンします
+    
+    Args:
+        nmap_output: nmapスキャンの結果テキスト
+    """
+    # サービス情報を抽出
+    service_infos = []
+    for line in nmap_output.split('\n'):
+        if 'open' in line and ('tcp' in line or 'udp' in line):
+            # サービス情報を含む行を抽出
+            service_info = line.split('open')[1].strip()
+            if service_info:
+                service_infos.append(service_info)
+    
+    if not service_infos:
+        return "No service information found in nmap output."
+    
+    # 各サービスの脆弱性をスキャン
+    results = []
+    results.append("=== VULNERABILITY SCAN RESULTS ===")
+    
+    for service_info in service_infos:
+        results.append(f"\nScanning: {service_info}")
+        vulnerabilities = await vuln_scanner.scan(service_info)
+        results.append(vuln_scanner.format_vulns(vulnerabilities))
+    
+    return "\n".join(results)
+
 # =============================================================================
 # ステータス・ヘルプ機能
 # =============================================================================
@@ -465,6 +507,6 @@ async def show_wordlists() -> str:
 
 if __name__ == "__main__":
     print("Starting Advanced Recon Scanner MCP server...", file=sys.stderr)
-    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer", file=sys.stderr)
-    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis", file=sys.stderr)
+    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, vuln_scanner", file=sys.stderr)
+    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, Vulnerability scanning", file=sys.stderr)
     mcp.run()

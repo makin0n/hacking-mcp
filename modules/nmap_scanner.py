@@ -7,8 +7,7 @@ from lxml import etree
 class NmapScanner:
     def __init__(self):
         self.default_options = [
-            "-T4",
-            "-Pn"
+            "-T4"
         ]
     
     def _validate_target(self, target: str) -> bool:
@@ -109,7 +108,7 @@ class NmapScanner:
                 "sudo", "nmap", "-oX", "-",
                 "-sV",                       # バージョン検出
                 "--version-intensity=3",     # バージョン検出の強度を3に下げる
-                "-Pn", "-T4"
+                "-T4"
             ]
             
             # NSEスクリプトを使用する場合
@@ -164,7 +163,7 @@ class NmapScanner:
             cmd = [
                 "sudo", "nmap", "-oX", "-",
                 f"-p{ports}",
-                "-Pn", "-T4", target
+                "-T4", target
             ]
             
             print(f"Executing port scan: {' '.join(cmd)}", file=sys.stderr)
@@ -199,7 +198,7 @@ class NmapScanner:
             cmd = [
                 "sudo", "nmap", "-oX", "-",
                 "--script", script_name,
-                "-Pn", "-T4"
+                "-T4"
             ]
             
             if ports:
