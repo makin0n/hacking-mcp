@@ -15,28 +15,17 @@ RUN apt-get update && \
     libpcap0.8 \
     libssl-dev \
     lua5.4 \
+    iproute2 \
+    net-tools \
     && rm -rf /var/lib/apt/lists/* \
     && apt-get clean
-
-# OpenVPN関連パッケージ（オプション機能用）
-RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
-    openvpn \
-    iptables \
-    && rm -rf /var/lib/apt/lists/* \
-    && apt-get clean
-
-# TUNデバイスの準備（VPN使用時のみ必要）
-RUN mkdir -p /dev/net
 
 # 非rootユーザーの作成
 RUN useradd -m -s /bin/bash recon
 
 # sudoの設定
 RUN echo 'recon ALL=(ALL) NOPASSWD: /usr/bin/nmap' >> /etc/sudoers && \
-    echo 'recon ALL=(ALL) NOPASSWD: /usr/bin/nmap *' >> /etc/sudoers && \
-    echo 'recon ALL=(ALL) NOPASSWD: /usr/sbin/openvpn' >> /etc/sudoers && \
-    echo 'recon ALL=(ALL) NOPASSWD: /sbin/ip' >> /etc/sudoers
+    echo 'recon ALL=(ALL) NOPASSWD: /usr/bin/nmap *' >> /etc/sudoers
 
 # 作業ディレクトリの設定
 WORKDIR /app
@@ -62,11 +51,6 @@ RUN chown -R recon:recon /app
 
 # 非rootユーザーに切り替え
 USER recon
-
-# 環境変数でVPN使用可否を制御
-ENV USE_VPN=false
-ENV VPN_CONFIG_PATH=/vpn/client.ovpn
-ENV VPN_AUTH_PATH=/vpn/auth.txt
 
 # スタートアップスクリプトを実行
 CMD ["/bin/bash", "./startup.sh"]

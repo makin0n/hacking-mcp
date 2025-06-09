@@ -3,3 +3,6 @@ mcp==1.9.2
 aiohttp==3.9.3
 lxml==5.4.0
 validators>=0.22.0
+python-whois>=0.8.0
+dnspython>=2.4.2
+beautifulsoup4>=4.12.2

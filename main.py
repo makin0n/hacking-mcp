@@ -1,6 +1,7 @@
 from mcp.server.fastmcp import FastMCP
 import sys
 from typing import List, Optional
+from datetime import datetime
 
 # モジュールのインポート
 from modules.nmap_scanner import NmapScanner
@@ -8,6 +9,7 @@ from modules.web_scanner import WebScanner
 from modules.dns_scanner import DNSScanner
 from modules.service_analyzer import ServiceAnalyzer
 from modules.vuln_scanner import VulnerabilityScanner
+from modules.osint_scanner import OSINTScanner, OSINTResult
 
 # 統合MCPサーバーの初期化
 mcp = FastMCP("recon-scanner")
@@ -18,6 +20,7 @@ web_scanner = WebScanner()
 dns_scanner = DNSScanner()
 service_analyzer = ServiceAnalyzer()
 vuln_scanner = VulnerabilityScanner()
+osint_scanner = OSINTScanner()
 
 # =============================================================================
 # Nmap関連ツール
@@ -412,6 +415,24 @@ async def scan_service_vulnerabilities(nmap_output: str) -> str:
     return "\n".join(results)
 
 # =============================================================================
+# OSINTツール
+# =============================================================================
+
+@mcp.tool()
+async def osint_scan(target: str) -> str:
+    """OSINTスキャンを実行します
+    
+    Args:
+        target: スキャン対象のドメイン名またはIPアドレス
+    """
+    try:
+        scanner = OSINTScanner()
+        result = await scanner.scan(target)
+        return format_result(result)
+    except Exception as e:
+        return f"OSINTスキャン中にエラーが発生しました: {str(e)}"
+
+# =============================================================================
 # ステータス・ヘルプ機能
 # =============================================================================
 
@@ -505,8 +526,55 @@ async def show_wordlists() -> str:
     ]
     return "\n".join(result)
 
+def format_result(result: OSINTResult) -> str:
+    """OSINTスキャン結果を整形して出力"""
+    output = []
+    output.append(f"OSINTスキャン結果 - {result.target}")
+    output.append(f"スキャン時刻: {result.scan_time}")
+    
+    if result.domain_info:
+        output.append("\n=== ドメイン情報 ===")
+        if 'whois' in result.domain_info:
+            output.append("\nWHOIS情報:")
+            for key, value in result.domain_info['whois'].items():
+                output.append(f"  {key}: {value}")
+                
+        if 'dns' in result.domain_info:
+            output.append("\nDNSレコード:")
+            for record_type, records in result.domain_info['dns'].items():
+                output.append(f"  {record_type}:")
+                for record in records:
+                    output.append(f"    {record}")
+                    
+        if 'ssl' in result.domain_info:
+            output.append("\nSSL証明書情報:")
+            for key, value in result.domain_info['ssl'].items():
+                output.append(f"  {key}: {value}")
+    
+    if result.ip_info:
+        output.append("\n=== IP情報 ===")
+        if 'location' in result.ip_info:
+            output.append("\n位置情報:")
+            for key, value in result.ip_info['location'].items():
+                output.append(f"  {key}: {value}")
+        if 'asn' in result.ip_info:
+            output.append(f"\nASN: {result.ip_info['asn']}")
+        if 'hostname' in result.ip_info:
+            output.append(f"ホスト名: {result.ip_info['hostname']}")
+    
+    if result.server_info:
+        output.append("\n=== サーバー情報 ===")
+        if 'server' in result.server_info:
+            output.append(f"\nサーバー: {result.server_info['server']}")
+        if 'technologies' in result.server_info:
+            output.append("\n検出された技術:")
+            for tech in result.server_info['technologies']:
+                output.append(f"  - {tech}")
+    
+    return "\n".join(output)
+
 if __name__ == "__main__":
     print("Starting Advanced Recon Scanner MCP server...", file=sys.stderr)
-    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, vuln_scanner", file=sys.stderr)
-    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, Vulnerability scanning", file=sys.stderr)
+    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, vuln_scanner, osint_scanner", file=sys.stderr)
+    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, Vulnerability scanning, OSINT scanning", file=sys.stderr)
     mcp.run()
