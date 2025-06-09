@@ -5,6 +5,9 @@ import time
 import re
 from urllib.parse import urljoin, urlparse
 from typing import List, Dict, Optional, Set
+from playwright.async_api import async_playwright
+import os
+
 
 class WebScanner:
     def __init__(self):
@@ -469,3 +472,21 @@ class WebScanner:
         result.append(files_scan)
         
         return "\n".join(result)
+
+    async def take_screenshot(self, url: str, path: str) -> bool:
+        """指定されたURLのスクリーンショットを撮影する"""
+        validated_url = self._validate_url(url)
+        if not validated_url:
+            return False
+            
+        try:
+            async with async_playwright() as p:
+                browser = await p.chromium.launch()
+                page = await browser.new_page(ignore_https_errors=True)
+                await page.goto(validated_url, timeout=15000)
+                await page.screenshot(path=path, full_page=True)
+                await browser.close()
+                return True
+        except Exception as e:
+            print(f"[-] Failed to take screenshot for {url}: {e}")
+            return False

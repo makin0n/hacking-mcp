@@ -15,6 +15,7 @@ RUN apt-get update && \
     libpcap0.8 \
     libssl-dev \
     lua5.4 \
+    iputils-ping \
     iproute2 \
     net-tools \
     && rm -rf /var/lib/apt/lists/* \
@@ -34,13 +35,21 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
+# Playwrightのブラウザをインストール（--with-depsで依存関係もインストール）
+RUN python -m playwright install --with-deps
+
 # アプリケーションファイルのコピー
-COPY main.py .
-COPY modules/ ./modules/
-COPY nse_scripts/ ./nse_scripts/
+#COPY main.py .
+#COPY modules/ ./modules/
+#COPY nse_scripts/ ./nse_scripts/
+#COPY utils/ ./utils/
+COPY . .
 
 # scan_resultsディレクトリの作成
 RUN mkdir -p scan_results
+
+# レポート保存用のディレクトリを作成し、全ユーザーに書き込み権限を付与
+RUN mkdir -p /app/reports && chmod 777 /app/reports
 
 # スタートアップスクリプトをコピー
 COPY startup.sh .

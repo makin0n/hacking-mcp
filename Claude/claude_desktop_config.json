@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "recon-scanner": {
+    "recon-mcp": {
       "command": "docker",
       "args": ["run", "--rm", "-i", "recon-mcp"]
     }

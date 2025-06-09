@@ -2,6 +2,7 @@ from mcp.server.fastmcp import FastMCP
 import sys
 from typing import List, Optional
 from datetime import datetime
+import os
 
 # モジュールのインポート
 from modules.nmap_scanner import NmapScanner
@@ -10,6 +11,7 @@ from modules.dns_scanner import DNSScanner
 from modules.service_analyzer import ServiceAnalyzer
 from modules.vuln_scanner import VulnerabilityScanner
 from modules.osint_scanner import OSINTScanner, OSINTResult
+from utils.report_manager import ReportManager
 
 # 統合MCPサーバーの初期化
 mcp = FastMCP("recon-scanner")
@@ -431,6 +433,50 @@ async def osint_scan(target: str) -> str:
         return format_result(result)
     except Exception as e:
         return f"OSINTスキャン中にエラーが発生しました: {str(e)}"
+
+# =============================================================================
+# レポート作成ツール
+# =============================================================================
+
+@mcp.tool()
+async def comprehensive_recon_with_report(target: str) -> str:
+    """包括的偵察を行い、結果をレポートとして保存します"""
+    
+    # 1. レポートマネージャーを初期化
+    report = ReportManager(target)
+    
+    # 2. ネットワークスキャンを実行し、レポートに追記
+    print(f"[*] Running Nmap scan on {target}...")
+    detailed_nmap = await nmap_scanner.detailed_scan(target, use_nse=True)
+    report.add_section("Nmap Scan Results", detailed_nmap)
+    
+    # 3. HTTP/HTTPSサービスがあればスクリーンショットを撮影
+    open_ports = nmap_scanner._extract_open_ports_from_result(detailed_nmap)
+    for port in open_ports:
+        protocol = "https" if port in ['443', '8443'] else "http"
+        service_url = f"{protocol}://{target}:{port}"
+        
+        ss_filename = f"{service_url.replace('://', '_').replace(':', '_')}.png"
+        ss_path = os.path.join(report.ss_dir, ss_filename)
+        
+        print(f"[*] Attempting to take screenshot of {service_url}...")
+        if await web_scanner.take_screenshot(service_url, ss_path):
+            report.add_screenshot(service_url, ss_path)
+            print(f"[+] Screenshot saved to {ss_path}")
+
+    # 4. 他のスキャンも同様に実行し、レポートに追記
+    print(f"[*] Running DNS Analysis on {target}...")
+    dns_result = await dns_scanner.dns_comprehensive(target)
+    report.add_section("DNS Analysis", dns_result)
+
+    print(f"[*] Running Web Application Analysis on {target}...")
+    web_comprehensive = await web_scanner.comprehensive_web_scan(target)
+    report.add_section("Web Application Analysis", web_comprehensive)
+    
+    # 5. 最後に短い確認メッセージだけを返す
+    final_message = f"✅ Scan complete. Full report saved at: {report.report_path}"
+    print(final_message) # ログにも出力
+    return final_message
 
 # =============================================================================
 # ステータス・ヘルプ機能
