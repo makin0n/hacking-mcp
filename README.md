@@ -12,6 +12,7 @@ Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供
 - Webサイトの隠しディレクトリ探索
 - サブドメインの自動探索
 - 脆弱性データベース（Exploit-DB/NVD）連携によるバージョン脆弱性自動検索
+- OSINT調査
 - 日本語での詳細なレポート出力
 
 ## 必要条件
@@ -89,12 +90,18 @@ vsftpd 2.3.4 の脆弱性を調べて
 <対象IPアドレス>に対してペネトレーションテストの手順を提案して
 ```
 
+9. OSINT調査
+```
+<対象IPアドレス>のOSINT調査をして
+```
+
 ### 例
 ```
 http://example.com/のディレクトリを探索して
 example.comのサブドメインを探して
 vsftpd 2.3.4の脆弱性を調べて
 nmap_basic_scan("example.com", use_nse=True)
+example.comのOSINT調査をして
 ```
 
 ### 注意事項
