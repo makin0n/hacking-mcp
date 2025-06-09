@@ -444,38 +444,45 @@ async def comprehensive_recon_with_report(target: str) -> str:
     
     # 1. レポートマネージャーを初期化
     report = ReportManager(target)
+    print(f"[*] Starting comprehensive recon with reporting for {target}...")
     
     # 2. ネットワークスキャンを実行し、レポートに追記
-    print(f"[*] Running Nmap scan on {target}...")
     detailed_nmap = await nmap_scanner.detailed_scan(target, use_nse=True)
     report.add_section("Nmap Scan Results", detailed_nmap)
     
     # 3. HTTP/HTTPSサービスがあればスクリーンショットを撮影
     open_ports = nmap_scanner._extract_open_ports_from_result(detailed_nmap)
+    web_ports_found = False # Webポートが見つかったかどうかのフラグ
+    
     for port in open_ports:
-        protocol = "https" if port in ['443', '8443'] else "http"
-        service_url = f"{protocol}://{target}:{port}"
-        
-        ss_filename = f"{service_url.replace('://', '_').replace(':', '_')}.png"
-        ss_path = os.path.join(report.ss_dir, ss_filename)
-        
-        print(f"[*] Attempting to take screenshot of {service_url}...")
-        if await web_scanner.take_screenshot(service_url, ss_path):
-            report.add_screenshot(service_url, ss_path)
-            print(f"[+] Screenshot saved to {ss_path}")
+        # 一般的なWebポートをチェック
+        if port in ['80', '443', '8080', '8443']:
+            web_ports_found = True
+            protocol = "https" if port in ['443', '8443'] else "http"
+            # ポート番号を含めたURLを生成
+            service_url = f"{protocol}://{target}:{port}"
+            
+            ss_filename = f"{service_url.replace('://', '_').replace(':', '_')}.png"
+            ss_path = os.path.join(report.ss_dir, ss_filename)
+            
+            if await web_scanner.take_screenshot(service_url, ss_path):
+                report.add_screenshot(service_url, ss_path)
 
-    # 4. 他のスキャンも同様に実行し、レポートに追記
-    print(f"[*] Running DNS Analysis on {target}...")
+    # 4. DNSスキャンを実行し、レポートに追記
     dns_result = await dns_scanner.dns_comprehensive(target)
     report.add_section("DNS Analysis", dns_result)
 
-    print(f"[*] Running Web Application Analysis on {target}...")
-    web_comprehensive = await web_scanner.comprehensive_web_scan(target)
-    report.add_section("Web Application Analysis", web_comprehensive)
-    
-    # 5. 最後に短い確認メッセージだけを返す
+    # 5. Webポートが見つかった場合のみ、Web包括分析を実行
+    if web_ports_found:
+        # web_scannerが賢くなったので、ターゲットをそのまま渡すだけで良い
+        web_comprehensive = await web_scanner.comprehensive_web_scan(target)
+        report.add_section("Web Application Analysis", web_comprehensive)
+    else:
+        report.add_section("Web Application Analysis", "No open web ports (80, 443, 8080, 8443) found. Skipping web scan.")
+
+    # 6. 最後に短い完了メッセージだけを返す
     final_message = f"✅ Scan complete. Full report saved at: {report.report_path}"
-    print(final_message) # ログにも出力
+    print(final_message) # 念のためコンテナのログにも出力
     return final_message
 
 # =============================================================================
