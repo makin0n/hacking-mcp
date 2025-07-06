@@ -30,16 +30,76 @@ git clone https://github.com/yourusername/recon-mcp.git
 cd recon-mcp
 ```
 
-3. Claude Desktop設定ファイルの配置：
-- 以下のパスにMCPサーバー設定ファイルを配置：
+3. **Dockerイメージのビルド**：
+```bash
+# 基本的なビルド
+docker build -t recon-mcp .
+
+# タグ付きでビルド
+docker build -t recon-mcp:latest .
+
+# キャッシュを使わずにビルド（問題がある場合）
+docker build --no-cache -t recon-mcp .
+
+# ビルドログを詳細に表示
+docker build --progress=plain -t recon-mcp .
 ```
-C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
+
+4. **Claude Desktop設定ファイルの配置**：
+
+   **基本設定（ボリュームマウントなし）**：
+   - `Claude/claude_desktop_config.json` を以下のパスにコピー：
+   ```
+   C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
+   ```
+
+   **ボリュームマウント付き設定（推奨）**：
+   - `Claude/claude_desktop_config_with_volume.json` を以下のパスにコピー：
+   ```
+   C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
+   ```
+   - ファイル内のパスを実際のパスに変更：
+   ```json
+   "C:/<path to your directory>/reports:/app/reports"
+   ```
+   を以下に変更：
+   ```json
+   "C:/Users/naoki/Documents/GitHub/recon-mcp/reports:/app/reports"
+   ```
+   - ホストマシンに `reports` ディレクトリを作成：
+   ```bash
+   mkdir reports
+   ```
+
+### Dockerビルドの詳細
+
+#### ビルド内容
+- **ベースイメージ**: Python 3.11-slim
+- **インストールツール**: nmap、dnsutils、curl、その他のセキュリティツール
+- **Python依存関係**: anthropic、mcp、playwright、その他のセキュリティライブラリ
+- **セキュリティ設定**: 非rootユーザー（recon）で実行
+
+#### ビルド時の注意事項
+- ビルドには時間がかかる場合があります（特にPlaywrightのブラウザインストール）
+- インターネット接続が必要です
+- 十分なディスク容量を確保してください（約2-3GB）
+
+#### ビルド後の実行方法
+```bash
+# 基本的な実行
+docker run -it recon-mcp
+
+# ポートマッピング付きで実行
+docker run -it -p 8000:8000 recon-mcp
+
+# ボリュームマウント付きで実行（レポート保存用）
+docker run -it -v $(pwd)/reports:/app/reports recon-mcp
 ```
 
 ## 使用方法
 
 ### 基本的な使用
-1. docker imageをビルド
+1. Dockerイメージをビルド（上記手順3を参照）
 2. Claude Desktopを起動
 3. 以下のような形式で質問を入力：
 ```
