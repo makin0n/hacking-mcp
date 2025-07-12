@@ -42,13 +42,12 @@ class NmapScanner:
         except Exception as e:
             return f"Error - {str(e)}"
     
-    async def basic_scan(self, target: str, options: Optional[List[str]] = None, use_nse: bool = False) -> str:
+    async def basic_scan(self, target: str, options: Optional[List[str]] = None) -> str:
         """基本的なnmapスキャン
         
         Args:
             target: スキャン対象のホスト/ネットワーク
             options: 追加のnmapオプション（例: ["-sV", "-p80,443"]）
-            use_nse: NSEスクリプトを使用するかどうか
         """
         if not self._validate_target(target):
             return "Error: Invalid target format"
@@ -62,10 +61,6 @@ class NmapScanner:
                     if re.match(r'^(-p[\d,-]+|-sV|-sC|-A|-T\d|-Pn|-F)$', opt):
                         safe_options.append(opt)
                 cmd.extend(safe_options)
-            
-            # NSEスクリプトを使用する場合
-            if use_nse:
-                cmd.extend(["-sC", "--script=default"])  # デフォルトのNSEスクリプトを実行
             
             cmd.append(target)
             
@@ -92,13 +87,12 @@ class NmapScanner:
         except Exception as e:
             return f"Error during scan: {str(e)}"
     
-    async def detailed_scan(self, target: str, ports: Optional[str] = None, use_nse: bool = False) -> str:
+    async def detailed_scan(self, target: str, ports: Optional[str] = None) -> str:
         """詳細スキャン（バージョン検出付き）
         
         Args:
             target: スキャン対象のホスト/ネットワーク
             ports: スキャン対象のポート（指定がない場合は1-1000をスキャン）
-            use_nse: NSEスクリプトを使用するかどうか
         """
         if not self._validate_target(target):
             return "Error: Invalid target format"
@@ -110,10 +104,6 @@ class NmapScanner:
                 "--version-intensity=3",     # バージョン検出の強度を3に下げる
                 "-T4"
             ]
-            
-            # NSEスクリプトを使用する場合
-            if use_nse:
-                cmd.extend(["-sC", "--script=default"])  # デフォルトのNSEスクリプトを実行
             
             # ポート指定がある場合はそのポートのみをスキャン
             if ports:
@@ -188,46 +178,6 @@ class NmapScanner:
             return "Port scan timed out after 5 minutes"
         except Exception as e:
             return f"Error during port scan: {str(e)}"
-    
-    async def run_nse_script(self, target: str, script_name: str, ports: Optional[str] = None) -> str:
-        """NSEスクリプトを実行"""
-        if not self._validate_target(target):
-            return "Error: Invalid target format"
-        
-        try:
-            cmd = [
-                "sudo", "nmap", "-oX", "-",
-                "--script", script_name,
-                "-T4"
-            ]
-            
-            if ports:
-                cmd.append(f"-p{ports}")
-            
-            cmd.append(target)
-            
-            print(f"Executing NSE script: {' '.join(cmd)}", file=sys.stderr)
-            
-            process = await asyncio.create_subprocess_exec(
-                *cmd,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            stdout, stderr = await asyncio.wait_for(
-                process.communicate(), 
-                timeout=300  # 5分
-            )
-            
-            if process.returncode == 0:
-                return self._parse_xml_output(stdout.decode(), detailed=True)
-            else:
-                return f"NSE script execution failed: {stderr.decode()}"
-                
-        except asyncio.TimeoutError:
-            return "NSE script execution timed out after 5 minutes"
-        except Exception as e:
-            return f"Error during NSE script execution: {str(e)}"
     
     def _parse_xml_output(self, xml_data: str, detailed: bool = False) -> str:
         """XML出力を解析してフォーマット"""

@@ -29,26 +29,24 @@ osint_scanner = OSINTScanner()
 # =============================================================================
 
 @mcp.tool()
-async def nmap_basic_scan(target: str, options: Optional[List[str]] = None, use_nse: bool = False) -> str:
+async def nmap_basic_scan(target: str, options: Optional[List[str]] = None) -> str:
     """基本的なnmapスキャンを実行します
     
     Args:
         target: スキャン対象のホスト/ネットワーク
         options: 追加のnmapオプション（例: ["-sV", "-p80,443"]）
-        use_nse: NSEスクリプトを使用するかどうか
     """
-    return await nmap_scanner.basic_scan(target, options, use_nse)
+    return await nmap_scanner.basic_scan(target, options)
 
 @mcp.tool()
-async def nmap_detailed_scan(target: str, ports: Optional[str] = None, use_nse: bool = False) -> str:
+async def nmap_detailed_scan(target: str, ports: Optional[str] = None) -> str:
     """詳細なnmapスキャン（バージョン検出付き）を実行します
     
     Args:
         target: スキャン対象のホスト/ネットワーク
         ports: スキャン対象のポート（指定がない場合は1-1000をスキャン）
-        use_nse: NSEスクリプトを使用するかどうか
     """
-    return await nmap_scanner.detailed_scan(target, ports, use_nse)
+    return await nmap_scanner.detailed_scan(target, ports)
 
 @mcp.tool()
 async def nmap_port_scan(target: str, ports: str) -> str:
@@ -60,16 +58,7 @@ async def nmap_port_scan(target: str, ports: str) -> str:
     """
     return await nmap_scanner.port_scan(target, ports)
 
-@mcp.tool()
-async def nmap_run_nse(target: str, script_name: str, ports: Optional[str] = None) -> str:
-    """指定したNSEスクリプトを実行します
-    
-    Args:
-        target: スキャン対象のホスト/ネットワーク
-        script_name: 実行するNSEスクリプト名（例: "http-title"）
-        ports: スキャン対象のポート（指定がない場合は全ポート）
-    """
-    return await nmap_scanner.run_nse_script(target, script_name, ports)
+
 
 # =============================================================================
 # Web関連ツール
