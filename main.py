@@ -39,12 +39,12 @@ async def nmap_basic_scan(target: str, options: Optional[List[str]] = None) -> s
     return await nmap_scanner.basic_scan(target, options)
 
 @mcp.tool()
-async def nmap_detailed_scan(target: str, ports: Optional[str] = None) -> str:
+async def nmap_detailed_scan(target: str, ports: str) -> str:
     """詳細なnmapスキャン（バージョン検出付き）を実行します
     
     Args:
         target: スキャン対象のホスト/ネットワーク
-        ports: スキャン対象のポート（指定がない場合は1-1000をスキャン）
+        ports: スキャン対象のポート（必須）
     """
     return await nmap_scanner.detailed_scan(target, ports)
 

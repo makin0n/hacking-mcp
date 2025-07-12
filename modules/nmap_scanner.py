@@ -92,32 +92,31 @@ class NmapScanner:
         
         Args:
             target: スキャン対象のホスト/ネットワーク
-            ports: スキャン対象のポート（指定がない場合は1-1000をスキャン）
+            ports: スキャン対象のポート（必須）
         """
         if not self._validate_target(target):
             return "Error: Invalid target format"
+        
+        # ポートが指定されていない場合はエラー
+        if not ports:
+            return "Error: Ports must be specified for detailed scan. Please run basic scan first to find open ports, then specify them for detailed scan."
+        
+        # ポート指定の簡単な検証
+        if not re.match(r'^[\d,-]+$', ports):
+            return "Error: Invalid port specification. Use format like '80,443' or '1-1000'"
         
         try:
             cmd = [
                 "sudo", "nmap", "-oX", "-",
                 "-sV",                       # バージョン検出
                 "--version-intensity=3",     # バージョン検出の強度を3に下げる
-                "-T4"
+                "-T4",
+                f"-p{ports}"                 # 指定されたポートのみをスキャン
             ]
-            
-            # ポート指定がある場合はそのポートのみをスキャン
-            if ports:
-                # ポート指定の簡単な検証
-                if not re.match(r'^[\d,-]+$', ports):
-                    return "Error: Invalid port specification. Use format like '80,443' or '1-1000'"
-                cmd.append(f"-p{ports}")
-            else:
-                # デフォルトで1-1000をスキャン
-                cmd.append("-p1-1000")
             
             cmd.append(target)
             
-            print(f"Executing detailed scan: {' '.join(cmd)}", file=sys.stderr)
+            print(f"Executing detailed scan on ports {ports}: {' '.join(cmd)}", file=sys.stderr)
             
             process = await asyncio.create_subprocess_exec(
                 *cmd,
@@ -265,8 +264,11 @@ class NmapScanner:
         """スキャン結果から開放ポート番号を抽出"""
         open_ports = []
         
-        # 正規表現でポート番号を抽出
+        # 正規表現でポート番号を抽出（より柔軟なパターン）
         port_pattern = r'(\d+)/\w+\s+-\s+open'
         matches = re.findall(port_pattern, scan_result)
         
-        return matches
+        # 重複を除去してソート
+        unique_ports = sorted(list(set(matches)), key=int)
+        
+        return unique_ports
