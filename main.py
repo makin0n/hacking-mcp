@@ -9,7 +9,7 @@ from modules.nmap_scanner import NmapScanner
 from modules.web_scanner import WebScanner
 from modules.dns_scanner import DNSScanner
 from modules.service_analyzer import ServiceAnalyzer
-from modules.vuln_scanner import VulnerabilityScanner
+
 from modules.osint_scanner import OSINTScanner, OSINTResult
 from utils.report_manager import ReportManager
 
@@ -21,7 +21,7 @@ nmap_scanner = NmapScanner()
 web_scanner = WebScanner()
 dns_scanner = DNSScanner()
 service_analyzer = ServiceAnalyzer()
-vuln_scanner = VulnerabilityScanner()
+
 osint_scanner = OSINTScanner()
 
 # =============================================================================
@@ -365,45 +365,7 @@ async def web_security_audit(url: str) -> str:
     
     return "\n".join(results)
 
-@mcp.tool()
-async def scan_vulnerabilities(service_info: str) -> str:
-    """サービス情報に基づいて脆弱性をスキャンします
-    
-    Args:
-        service_info: サービス情報（例: "Apache 2.4.41"）
-    """
-    vulnerabilities = await vuln_scanner.scan(service_info)
-    return vuln_scanner.format_vulns(vulnerabilities)
 
-@mcp.tool()
-async def scan_service_vulnerabilities(nmap_output: str) -> str:
-    """nmapの出力からサービス情報を抽出し、各サービスの脆弱性をスキャンします
-    
-    Args:
-        nmap_output: nmapスキャンの結果テキスト
-    """
-    # サービス情報を抽出
-    service_infos = []
-    for line in nmap_output.split('\n'):
-        if 'open' in line and ('tcp' in line or 'udp' in line):
-            # サービス情報を含む行を抽出
-            service_info = line.split('open')[1].strip()
-            if service_info:
-                service_infos.append(service_info)
-    
-    if not service_infos:
-        return "No service information found in nmap output."
-    
-    # 各サービスの脆弱性をスキャン
-    results = []
-    results.append("=== VULNERABILITY SCAN RESULTS ===")
-    
-    for service_info in service_infos:
-        results.append(f"\nScanning: {service_info}")
-        vulnerabilities = await vuln_scanner.scan(service_info)
-        results.append(vuln_scanner.format_vulns(vulnerabilities))
-    
-    return "\n".join(results)
 
 # =============================================================================
 # OSINTツール
@@ -436,7 +398,16 @@ async def comprehensive_recon_with_report(target: str) -> str:
     print(f"[*] Starting comprehensive recon with reporting for {target}...")
     
     # 2. ネットワークスキャンを実行し、レポートに追記
-    detailed_nmap = await nmap_scanner.detailed_scan(target, use_nse=True)
+    # まず基本スキャンで開放ポートを特定
+    basic_nmap = await nmap_scanner.basic_scan(target)
+    open_ports = nmap_scanner._extract_open_ports_from_result(basic_nmap)
+    
+    if open_ports:
+        ports_str = ",".join(open_ports)
+        detailed_nmap = await nmap_scanner.detailed_scan(target, ports_str)
+    else:
+        detailed_nmap = basic_nmap
+    
     report.add_section("Nmap Scan Results", detailed_nmap)
     
     # 3. HTTP/HTTPSサービスがあればスクリーンショットを撮影
@@ -495,7 +466,6 @@ async def scanner_status() -> str:
         "  • nmap_basic_scan: 基本ポートスキャン（高速）",
         "  • nmap_detailed_scan: 詳細スキャン（バージョン検出）",
         "  • nmap_port_scan: 指定ポートスキャン",
-        "  • nmap_run_nse: NSEスクリプト実行",
         "",
         "🌐 Web Application Testing (web_*):",
         "  • web_basic_info: Web基本情報取得",
@@ -617,6 +587,6 @@ def format_result(result: OSINTResult) -> str:
 
 if __name__ == "__main__":
     print("Starting Advanced Recon Scanner MCP server...", file=sys.stderr)
-    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, vuln_scanner, osint_scanner", file=sys.stderr)
-    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, Vulnerability scanning, OSINT scanning", file=sys.stderr)
+    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, osint_scanner", file=sys.stderr)
+    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, OSINT scanning", file=sys.stderr)
     mcp.run()

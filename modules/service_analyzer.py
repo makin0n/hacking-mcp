@@ -124,22 +124,7 @@ class ServiceAnalyzer:
             }
         }
         
-        # 既知の脆弱なバージョンパターン
-        self.vulnerable_versions = {
-            "OpenSSH": {
-                "2.0": "古いバージョン - 多数の脆弱性",
-                "3.0": "古いバージョン - 多数の脆弱性",
-                "7.4": "ユーザー列挙脆弱性 (CVE-2018-15473)"
-            },
-            "Apache": {
-                "2.2": "サポート終了 - セキュリティ更新なし",
-                "2.4.1": "複数の脆弱性 - 更新推奨"
-            },
-            "nginx": {
-                "1.0": "古いバージョン - 更新推奨",
-                "1.3.9": "SSL/TLS 脆弱性"
-            }
-        }
+
     
     async def get_status(self) -> str:
         """Service Analyzerの状態確認"""
@@ -173,12 +158,7 @@ class ServiceAnalyzer:
                 # セキュリティレベルの評価
                 analysis["security_level"] = self._evaluate_security_level(port, service_name, version)
         
-        # バージョン固有の脆弱性チェック
-        if service_name and version:
-            vuln_info = self._check_version_vulnerabilities(service_name, version)
-            if vuln_info:
-                analysis["version_vulnerabilities"] = vuln_info
-                analysis["security_level"] = "high_risk"
+
         
         return analysis
     
@@ -210,17 +190,7 @@ class ServiceAnalyzer:
         else:
             return "secure"
     
-    def _check_version_vulnerabilities(self, service_name: str, version: str) -> Optional[List[str]]:
-        """バージョン固有の脆弱性チェック"""
-        vulnerabilities = []
-        
-        for product, vuln_versions in self.vulnerable_versions.items():
-            if product.lower() in service_name.lower():
-                for vuln_version, description in vuln_versions.items():
-                    if vuln_version in version:
-                        vulnerabilities.append(f"{product} {vuln_version}: {description}")
-        
-        return vulnerabilities if vulnerabilities else None
+
     
     async def analyze_nmap_results(self, nmap_output: str) -> str:
         """nmapの結果を解析してサービス分析を実行"""
@@ -269,10 +239,7 @@ class ServiceAnalyzer:
                         for rec in analysis["recommendations"]:
                             result.append(f"  ✓ {rec}")
                     
-                    if analysis.get("version_vulnerabilities"):
-                        result.append("\n⚠️  Known Version Vulnerabilities:")
-                        for vuln in analysis["version_vulnerabilities"]:
-                            result.append(f"  🔴 {vuln}")
+
                     
                     if analysis["tools"]:
                         result.append("\nRecommended Testing Tools:")
