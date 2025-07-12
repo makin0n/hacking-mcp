@@ -177,9 +177,7 @@ docker run -it -v $(pwd)/reports:/app/reports recon-mcp
 <ドメイン>のサブドメインを探索して
 ```
 
-
-
-7. **OSINT調査**：
+6. **OSINT調査**：
 ```
 <対象IPアドレス>のOSINT調査をして
 ```
