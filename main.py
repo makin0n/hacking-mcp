@@ -9,6 +9,7 @@ from modules.nmap_scanner import NmapScanner
 from modules.web_scanner import WebScanner
 from modules.dns_scanner import DNSScanner
 from modules.service_analyzer import ServiceAnalyzer
+from modules.ftp_scanner import FTPScanner
 
 from modules.osint_scanner import OSINTScanner, OSINTResult
 from utils.report_manager import ReportManager
@@ -21,6 +22,7 @@ nmap_scanner = NmapScanner()
 web_scanner = WebScanner()
 dns_scanner = DNSScanner()
 service_analyzer = ServiceAnalyzer()
+ftp_scanner = FTPScanner()
 
 osint_scanner = OSINTScanner()
 
@@ -194,6 +196,45 @@ async def service_quick_analysis(target: str, port: int) -> str:
     return await service_analyzer.quick_port_analysis(target, port)
 
 # =============================================================================
+# FTP関連ツール
+# =============================================================================
+
+@mcp.tool()
+async def ftp_anonymous_scan(target: str, port: int = 21) -> str:
+    """FTP匿名ログインのセキュリティスキャンを実行します
+    
+    Args:
+        target: スキャン対象のホスト
+        port: FTPポート番号（デフォルト: 21）
+    """
+    scan_result = await ftp_scanner.scan_ftp_anonymous_login(target, port)
+    return await ftp_scanner.generate_report(scan_result)
+
+@mcp.tool()
+async def ftp_server_info(target: str, port: int = 21) -> str:
+    """FTPサーバーの基本情報を取得します
+    
+    Args:
+        target: スキャン対象のホスト
+        port: FTPポート番号（デフォルト: 21）
+    """
+    server_info = await ftp_scanner._get_ftp_server_info(target, port)
+    
+    result = []
+    result.append("=== FTP SERVER INFORMATION ===")
+    result.append(f"Target: {target}:{port}")
+    result.append("")
+    
+    if server_info.get("banner"):
+        result.append(f"Banner: {server_info['banner']}")
+    if server_info.get("version"):
+        result.append(f"Version: {server_info['version']}")
+    if server_info.get("error"):
+        result.append(f"Error: {server_info['error']}")
+    
+    return "\n".join(result)
+
+# =============================================================================
 # 統合・包括的スキャン機能
 # =============================================================================
 
@@ -279,6 +320,14 @@ async def comprehensive_recon(target: str) -> str:
         results.append("-" * 30)
         web_comprehensive = await web_scanner.comprehensive_web_scan(web_target)
         results.append(web_comprehensive)
+    
+    # 5. FTP匿名ログイン分析（FTPサービスが見つかった場合）
+    if any(port in detailed_nmap for port in ['21', '2121']):
+        results.append("\n5. FTP Anonymous Login Analysis")
+        results.append("-" * 35)
+        ftp_result = await ftp_scanner.scan_ftp_anonymous_login(target, 21)
+        ftp_report = await ftp_scanner.generate_report(ftp_result)
+        results.append(ftp_report)
     
     return "\n".join(results)
 
@@ -459,6 +508,7 @@ async def scanner_status() -> str:
         f"Web Scanner: {await web_scanner.get_status()}",
         f"DNS Scanner: {await dns_scanner.get_status()}",
         f"Service Analyzer: {await service_analyzer.get_status()}",
+        f"FTP Scanner: {await ftp_scanner.get_status()}",
         "",
         "=== AVAILABLE TOOL CATEGORIES ===",
         "",
@@ -485,6 +535,10 @@ async def scanner_status() -> str:
         "🛡️ Service Analysis (service_*):",
         "  • service_analyze_nmap: nmapの結果を分析",
         "  • service_quick_analysis: 特定ポートの分析",
+        "",
+        "📁 FTP Security (ftp_*):",
+        "  • ftp_anonymous_scan: FTP匿名ログインスキャン",
+        "  • ftp_server_info: FTPサーバー情報取得",
         "",
         "🚀 Integrated Reconnaissance:",
         "  • quick_recon: クイック偵察（nmap + web基本）",
@@ -587,6 +641,6 @@ def format_result(result: OSINTResult) -> str:
 
 if __name__ == "__main__":
     print("Starting Advanced Recon Scanner MCP server...", file=sys.stderr)
-    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, osint_scanner", file=sys.stderr)
-    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, OSINT scanning", file=sys.stderr)
+    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, ftp_scanner, osint_scanner", file=sys.stderr)
+    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, FTP anonymous login scanning, OSINT scanning", file=sys.stderr)
     mcp.run()
