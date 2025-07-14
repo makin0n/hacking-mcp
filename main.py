@@ -3,6 +3,9 @@ import sys
 from typing import List, Optional
 from datetime import datetime
 import os
+import tempfile
+import shutil
+import asyncio
 
 # モジュールのインポート
 from modules.nmap_scanner import NmapScanner
@@ -10,7 +13,7 @@ from modules.web_scanner import WebScanner
 from modules.dns_scanner import DNSScanner
 from modules.service_analyzer import ServiceAnalyzer
 from modules.ftp_scanner import FTPScanner
-
+from modules.hydra_scanner import HydraScanner
 from modules.osint_scanner import OSINTScanner, OSINTResult
 from utils.report_manager import ReportManager
 
@@ -23,7 +26,7 @@ web_scanner = WebScanner()
 dns_scanner = DNSScanner()
 service_analyzer = ServiceAnalyzer()
 ftp_scanner = FTPScanner()
-
+hydra_scanner = HydraScanner()
 osint_scanner = OSINTScanner()
 
 # =============================================================================
@@ -233,6 +236,83 @@ async def ftp_server_info(target: str, port: int = 21) -> str:
         result.append(f"Error: {server_info['error']}")
     
     return "\n".join(result)
+
+@mcp.tool()
+async def ftp_download_and_read_files(target: str, filenames: List[str]) -> str:
+    """
+    【最終安定版】FTPサーバーからファイルを一つずつ、間に遅延を挟んでダウンロードし、内容を読み込んで表示します。
+
+    Args:
+        target: FTPサーバーのIPアドレスまたはホスト名
+        filenames: 内容を取得したいファイル名のリスト (例: ["task.txt", "locks.txt"])
+    """
+    temp_dir = tempfile.mkdtemp()
+    results = []
+    results.append(f"=== FTP File Content Retrieval for {target} ===")
+    
+    download_success = []
+    download_errors = []
+
+    results.append("\n--- Phase 1: Downloading files (with tactical delays) ---")
+    for i, filename in enumerate(filenames):
+        local_path = os.path.join(temp_dir, filename)
+        
+        results.append(f"  - Attempting to download: {filename}")
+        download_result = await ftp_scanner.download_file(
+            target=target, port=21, username="anonymous", password="",
+            remote_path=filename, local_path=local_path
+        )
+
+        if "✅" in download_result:
+            results.append(f"    └ SUCCESS.")
+            download_success.append(filename)
+        else:
+            results.append(f"    └ FAILED. Error: {download_result}")
+            download_errors.append(filename)
+        
+        # 最後のファイルでなければ、サーバーのレート制限を回避するために15秒間の遅延を入れる
+        if i < len(filenames) - 1:
+            results.append("    - Waiting 15 seconds to bypass server rate-limiting...")
+            await asyncio.sleep(15)
+
+    results.append("\n--- Phase 2: Reading downloaded files ---")
+    if not download_success:
+        results.append("No files were successfully downloaded.")
+    else:
+        for filename in download_success:
+            try:
+                local_path = os.path.join(temp_dir, filename)
+                with open(local_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                results.append(f"\n--- Content of {filename} ---")
+                results.append(content)
+            except Exception as e:
+                results.append(f"\n--- Failed to read local file {filename} ---")
+                results.append(f"Error: {e}")
+
+    shutil.rmtree(temp_dir)
+    results.append("\n========================================")
+    results.append("Process finished.")
+    
+    return "\n".join(results)
+
+# =============================================================================
+# ブルートフォース攻撃ツール
+# =============================================================================
+
+@mcp.tool()
+async def ssh_hydra_attack(target: str, username: str, password_list_path: str, port: int = 22) -> str:
+    """
+    Hydraを使い、SSHに対してパスワードリスト攻撃（ブルートフォース）を実行します。
+
+    Args:
+        target: 攻撃対象のIPアドレスまたはホスト名
+        username: 攻撃対象のユーザー名
+        password_list_path: パスワードリストのパス（Dockerコンテナ内のパス）。
+                            事前にftp_download_file等で入手したリストを /tmp/pass.txt などに保存して使用してください。
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_brute_force(target, port, username, password_list_path)
 
 # =============================================================================
 # 統合・包括的スキャン機能
