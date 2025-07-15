@@ -301,6 +301,19 @@ async def ftp_download_and_read_files(target: str, filenames: List[str]) -> str:
 # =============================================================================
 
 @mcp.tool()
+async def ssh_login_test(target: str, username: str, password: str, port: int = 22) -> str:
+    """
+    指定のIDとPasswordを使用してSSHログインを試します。
+
+    Args:
+        target: ログイン対象のIPアドレスまたはホスト名
+        username: ログイン試行するユーザー名
+        password: ログイン試行するパスワード
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_login_test(target, username, password, port)
+
+@mcp.tool()
 async def ssh_hydra_attack(target: str, username: str, password_list_path: str, port: int = 22) -> str:
     """
     Hydraを使い、SSHに対してパスワードリスト攻撃（ブルートフォース）を実行します。
