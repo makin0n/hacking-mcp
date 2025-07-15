@@ -49,11 +49,12 @@ Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供
   - サービスのリスク評価
   - 推奨対策の提示
 
-### 7. SSHログイン機能
-- 指定のIDとPasswordを使用してSSHログインを試行します。
+### 7. SSHログイン機能（cron権限昇格分析付き）
+- 指定のIDとPasswordを使用してSSHログインを試行し、cron権限昇格の可能性を分析します。
 - 例：
   - 単一の認証情報でのSSHログインテスト
   - ログイン成功時のシステム情報取得
+  - cronジョブの詳細分析と権限昇格の試行
   - 認証失敗時の詳細エラー情報
 
 ### 8. SSHブルートフォース攻撃
@@ -201,7 +202,7 @@ docker run -it -v $(pwd)/reports:/app/reports recon-mcp
 <対象IPアドレス>のOSINT調査をして
 ```
 
-7. **SSHログインテスト**：
+7. **SSHログインテスト（cron権限昇格分析付き）**：
 ```
 <対象IPアドレス>にユーザー名<username>とパスワード<password>でSSHログインを試して
 ```
@@ -240,7 +241,7 @@ docker run -it -v $(pwd)/reports:/app/reports recon-mcp
 http://example.com/のディレクトリを探索して
 example.comのサブドメインを探して
 example.comのOSINT調査をして
-192.168.1.100にユーザー名adminとパスワードpassword123でSSHログインを試して
+192.168.1.100にユーザー名adminとパスワードpassword123でSSHログインを試して（cron権限昇格分析付き）
 192.168.1.100にユーザー名adminでパスワードリスト/tmp/passwords.txtを使用してSSHブルートフォース攻撃を実行して
 192.168.1.100のFTP匿名ログインをテストして
 ```
