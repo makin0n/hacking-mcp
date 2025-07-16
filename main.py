@@ -617,37 +617,66 @@ async def comprehensive_recon_with_report(target: str) -> str:
 # =============================================================================
 
 @mcp.tool()
-async def ssh_explore_current_directory() -> str:
-    """SSH接続後の現在のディレクトリを調査します"""
-    return await ssh_explorer.explore_current_directory()
-
-@mcp.tool()
-async def ssh_search_flag_files(search_paths: Optional[List[str]] = None) -> str:
-    """SSH接続後にflag*.txtやroot.txtファイルを網羅的に検索します
+async def ssh_explore_current_directory(host: str, username: str, password: str, port: int = 22) -> str:
+    """SSH接続後のリモートサーバー上の現在のディレクトリを調査します
     
     Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.explore_current_directory(host=host, port=port, username=username, password=password)
+
+@mcp.tool()
+async def ssh_search_flag_files(host: str, username: str, password: str, port: int = 22, search_paths: Optional[List[str]] = None) -> str:
+    """SSH接続後、リモートサーバー上のflag*.txtやroot.txtファイルを網羅的に検索します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
         search_paths: 検索するパスのリスト（指定しない場合は主要ディレクトリを検索）
     """
-    return await ssh_explorer.search_flag_files(search_paths)
+    return await ssh_explorer.search_flag_files(host=host, port=port, username=username, password=password, search_paths=search_paths)
 
 @mcp.tool()
-async def ssh_explore_system_directories() -> str:
-    """SSH接続後にシステムの主要ディレクトリを調査します"""
-    return await ssh_explorer.explore_system_directories()
-
-@mcp.tool()
-async def ssh_check_hidden_files(directory: str = '.') -> str:
-    """SSH接続後に隠しファイルを検索します
+async def ssh_explore_system_directories(host: str, username: str, password: str, port: int = 22) -> str:
+    """SSH接続後、リモートサーバーのシステムの主要ディレクトリを調査します
     
     Args:
-        directory: 検索するディレクトリ（デフォルト: 現在のディレクトリ）
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
     """
-    return await ssh_explorer.check_hidden_files(directory)
+    return await ssh_explorer.explore_system_directories(host=host, port=port, username=username, password=password)
 
 @mcp.tool()
-async def ssh_comprehensive_exploration() -> str:
-    """SSH接続後にflag*.txtやroot.txtファイルを網羅的に検索します"""
-    return await ssh_explorer.comprehensive_exploration()
+async def ssh_check_hidden_files(host: str, username: str, password: str, port: int = 22, directory: str = '.') -> str:
+    """SSH接続後、リモートサーバー上の隠しファイルを検索します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+        directory: 検索するディレクトリ（デフォルト: 現在のディレクトリ）
+    """
+    return await ssh_explorer.check_hidden_files(host=host, port=port, username=username, password=password, directory=directory)
+
+@mcp.tool()
+async def ssh_comprehensive_exploration(host: str, username: str, password: str, port: int = 22) -> str:
+    """SSH接続後、リモートサーバー上のflag*.txtやroot.txtファイルを網羅的に検索します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.comprehensive_exploration(host=host, port=port, username=username, password=password)
 
 # =============================================================================
 # ステータス・ヘルプ機能

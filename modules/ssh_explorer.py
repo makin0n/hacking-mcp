@@ -1,183 +1,107 @@
 import asyncio
-import subprocess
-import os
-import re
-from typing import List, Dict, Optional
+import asyncssh
+from typing import List, Optional
 
 class SSHExplorer:
-    """SSH接続後のディレクトリ調査とファイル検索を行うクラス"""
-    
-    def __init__(self):
-        self.current_directory = None
-        self.found_files = []
-        
-    async def explore_current_directory(self) -> str:
-        """現在のディレクトリの内容を調査します"""
+    """SSH接続後のリモートサーバー調査とファイル検索を行うクラス"""
+
+    async def _run_remote_command(self, conn: asyncssh.SSHClientConnection, command: str) -> str:
+        """リモートでコマンドを実行し、標準出力を返す"""
+        result = await conn.run(command, check=False)
+        return result.stdout.strip()
+
+    async def _execute_exploration(self, host: str, port: int, username: str, password: str, task_function):
+        """SSH接続を確立し、指定された探索タスクを実行する共通ラッパー"""
         try:
-            # 現在のディレクトリを取得
-            result = await asyncio.create_subprocess_exec(
-                'pwd',
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await result.communicate()
-            current_dir = stdout.decode().strip()
-            self.current_directory = current_dir
-            
-            # ディレクトリの内容を取得
-            result = await asyncio.create_subprocess_exec(
-                'ls', '-la',
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await result.communicate()
-            dir_contents = stdout.decode()
-            
-            return f"現在のディレクトリ: {current_dir}\n\nディレクトリの内容:\n{dir_contents}"
-            
+            async with asyncssh.connect(host, port=port, username=username, password=password, known_hosts=None) as conn:
+                return await task_function(conn)
+        except asyncssh.PermissionDeniedError:
+            return "エラー: 認証に失敗しました。ユーザー名またはパスワードが正しくありません。"
+        except OSError as e:
+            return f"エラー: 接続に失敗しました。ホスト {host}:{port} を確認してください。 ({e})"
         except Exception as e:
-            return f"エラーが発生しました: {str(e)}"
-    
-    async def search_flag_files(self, search_paths: Optional[List[str]] = None) -> str:
-        """flag*.txtやroot.txtファイルを網羅的に検索します"""
+            return f"予期せぬエラーが発生しました: {str(e)}"
+
+    async def explore_current_directory(self, host: str, port: int, username: str, password: str) -> str:
+        """リモートサーバーの現在のディレクトリの内容を調査します"""
+        async def task(conn):
+            current_dir = await self._run_remote_command(conn, 'pwd')
+            dir_contents = await self._run_remote_command(conn, 'ls -la')
+            return f"現在のディレクトリ: {current_dir}\n\nディレクトリの内容:\n{dir_contents}"
+        
+        return await self._execute_exploration(host, port, username, password, task)
+
+    async def search_flag_files(self, host: str, port: int, username: str, password: str, search_paths: Optional[List[str]] = None) -> str:
+        """リモートサーバー上のflag*.txtやroot.txtファイルを網羅的に検索します"""
         if search_paths is None:
-            search_paths = ['.', '/home', '/var', '/tmp', '/opt', '/usr', '/etc', '/']
+            search_paths = ['.', '/home', '/var', '/tmp', '/opt', '/usr', '/etc', '/root', '/']
         
-        for path in search_paths:
-            try:
-                # findコマンドでflag*.txtとroot.txtファイルを検索
-                result = await asyncio.create_subprocess_exec(
-                    'find', path, '-name', 'flag*.txt', '-o', '-name', 'root.txt', '-type', 'f', '2>/dev/null',
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                stdout, stderr = await result.communicate()
-                files = stdout.decode().strip().split('\n')
+        async def task(conn):
+            found_any_file = False
+            output_text = ""
+            # findコマンドを一括で実行
+            find_command = "find " + " ".join(search_paths) + " \\( -name 'flag*.txt' -o -name 'root.txt' \\) -type f 2>/dev/null"
+            found_files_str = await self._run_remote_command(conn, find_command)
+
+            if not found_files_str:
+                return "flag*.txtまたはroot.txtファイルは見つかりませんでした。"
+
+            files = found_files_str.split('\n')
+            for file_path in files:
+                if not file_path:
+                    continue
                 
-                for file_path in files:
-                    if file_path:
-                        # flagファイルが見つかったら即座に内容を読み取って返す
-                        result_text = f"見つかったflagファイル: {file_path}\n"
-                        
-                        try:
-                            content_result = await asyncio.create_subprocess_exec(
-                                'cat', file_path,
-                                stdout=asyncio.subprocess.PIPE,
-                                stderr=asyncio.subprocess.PIPE
-                            )
-                            content_stdout, content_stderr = await content_result.communicate()
-                            content = content_stdout.decode().strip()
-                            
-                            if content:
-                                result_text += f"内容: {content}\n"
-                            else:
-                                result_text += f"内容: (空ファイル)\n"
-                                
-                        except Exception as e:
-                            result_text += f"内容: 読み取りエラー - {str(e)}\n"
-                        
-                        return result_text
-                        
-            except Exception as e:
-                continue
-        
-        return "flag*.txtまたはroot.txtファイルは見つかりませんでした。"
-    
-    async def explore_system_directories(self) -> str:
-        """システムの主要ディレクトリを調査します"""
-        directories = {
-            '/home': 'ユーザーホームディレクトリ',
-            '/var': '可変データ',
-            '/tmp': '一時ファイル',
-            '/opt': 'オプションアプリケーション',
-            '/usr': 'ユーザープログラム',
-            '/etc': '設定ファイル',
-            '/root': 'rootホームディレクトリ'
-        }
-        
-        result_text = "システムディレクトリ調査結果:\n\n"
-        
-        for dir_path, description in directories.items():
-            try:
-                # ディレクトリの存在確認
-                result = await asyncio.create_subprocess_exec(
-                    'ls', '-la', dir_path,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                stdout, stderr = await result.communicate()
+                found_any_file = True
+                result_text = f"見つかったflagファイル: {file_path}\n"
                 
-                if result.returncode == 0:
-                    contents = stdout.decode()
-                    result_text += f"=== {description} ({dir_path}) ===\n"
-                    result_text += f"{contents}\n\n"
+                content = await self._run_remote_command(conn, f'cat "{file_path}"')
+                if content:
+                    result_text += f"内容: {content}\n"
                 else:
-                    result_text += f"=== {description} ({dir_path}) ===\n"
-                    result_text += f"アクセス不可または存在しません\n\n"
-                    
-            except Exception as e:
-                result_text += f"=== {description} ({dir_path}) ===\n"
-                result_text += f"エラー: {str(e)}\n\n"
+                    result_text += "内容: (空ファイル)\n"
+                
+                output_text += result_text + "\n"
+
+            return output_text.strip() if found_any_file else "flag*.txtまたはroot.txtファイルは見つかりませんでした。"
+
+        return await self._execute_exploration(host, port, username, password, task)
+
+    async def explore_system_directories(self, host: str, port: int, username: str, password: str) -> str:
+        """リモートサーバーのシステムの主要ディレクトリを調査します"""
+        directories = ['/home', '/var', '/tmp', '/opt', '/usr', '/etc', '/root']
         
-        return result_text
-    
-    async def check_hidden_files(self, directory: str = '.') -> str:
-        """隠しファイルを検索します"""
-        try:
-            result = await asyncio.create_subprocess_exec(
-                'find', directory, '-name', '.*', '-type', 'f', '2>/dev/null',
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            stdout, stderr = await result.communicate()
-            hidden_files = stdout.decode().strip().split('\n')
+        async def task(conn):
+            result_text = "システムディレクトリ調査結果:\n\n"
+            for dir_path in directories:
+                contents = await self._run_remote_command(conn, f'ls -la {dir_path}')
+                result_text += f"=== {dir_path} ===\n"
+                result_text += f"{contents}\n\n"
+            return result_text
+
+        return await self._execute_exploration(host, port, username, password, task)
+
+    async def check_hidden_files(self, host: str, port: int, username: str, password: str, directory: str = '.') -> str:
+        """リモートサーバーの隠しファイルを検索します"""
+        async def task(conn):
+            find_command = f"find {directory} -name '.*' -type f 2>/dev/null"
+            hidden_files_str = await self._run_remote_command(conn, find_command)
             
-            if not hidden_files or hidden_files == ['']:
+            if not hidden_files_str:
                 return f"{directory}に隠しファイルは見つかりませんでした。"
             
             result_text = f"{directory}の隠しファイル:\n"
-            for file_path in hidden_files:
-                if file_path:
-                    result_text += f"- {file_path}\n"
-                    
-                    # ファイルサイズを確認
-                    try:
-                        size_result = await asyncio.create_subprocess_exec(
-                            'ls', '-la', file_path,
-                            stdout=asyncio.subprocess.PIPE,
-                            stderr=asyncio.subprocess.PIPE
-                        )
-                        size_stdout, size_stderr = await size_result.communicate()
-                        size_info = size_stdout.decode().strip()
-                        result_text += f"  {size_info}\n"
-                        
-                        # 小さなファイルの場合は内容も表示
-                        if os.path.getsize(file_path) < 1024:  # 1KB未満
-                            content_result = await asyncio.create_subprocess_exec(
-                                'cat', file_path,
-                                stdout=asyncio.subprocess.PIPE,
-                                stderr=asyncio.subprocess.PIPE
-                            )
-                            content_stdout, content_stderr = await content_result.communicate()
-                            content = content_stdout.decode().strip()
-                            if content:
-                                result_text += f"  内容: {content}\n"
-                        
-                        result_text += "\n"
-                        
-                    except Exception as e:
-                        result_text += f"  エラー: {str(e)}\n\n"
+            files = hidden_files_str.split('\n')
+            for file_path in files:
+                if not file_path:
+                    continue
+                
+                size_info = await self._run_remote_command(conn, f'ls -la "{file_path}"')
+                result_text += f"- {file_path}\n  {size_info}\n\n"
             
             return result_text
-            
-        except Exception as e:
-            return f"隠しファイル検索でエラーが発生しました: {str(e)}"
-    
-    async def comprehensive_exploration(self) -> str:
-        """flag*.txtやroot.txtファイルを網羅的に検索します"""
-        result_text = "=== flagファイル検索 ===\n\n"
-        
-        # flagファイル検索のみ実行
-        result_text += await self.search_flag_files()
-        
-        return result_text 
+
+        return await self._execute_exploration(host, port, username, password, task)
+
+    async def comprehensive_exploration(self, host: str, port: int, username: str, password: str) -> str:
+        """リモートサーバーのflag*.txtやroot.txtファイルを網羅的に検索します"""
+        return await self.search_flag_files(host, port, username, password)
