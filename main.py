@@ -15,6 +15,7 @@ from modules.service_analyzer import ServiceAnalyzer
 from modules.ftp_scanner import FTPScanner
 from modules.hydra_scanner import HydraScanner
 from modules.osint_scanner import OSINTScanner, OSINTResult
+from modules.ssh_explorer import SSHExplorer
 from utils.report_manager import ReportManager
 
 # 統合MCPサーバーの初期化
@@ -28,6 +29,7 @@ service_analyzer = ServiceAnalyzer()
 ftp_scanner = FTPScanner()
 hydra_scanner = HydraScanner()
 osint_scanner = OSINTScanner()
+ssh_explorer = SSHExplorer()
 
 # =============================================================================
 # Nmap関連ツール
@@ -601,6 +603,43 @@ async def comprehensive_recon_with_report(target: str) -> str:
     return final_message
 
 # =============================================================================
+# SSH接続後調査ツール
+# =============================================================================
+
+@mcp.tool()
+async def ssh_explore_current_directory() -> str:
+    """SSH接続後の現在のディレクトリを調査します"""
+    return await ssh_explorer.explore_current_directory()
+
+@mcp.tool()
+async def ssh_search_flag_files(search_paths: Optional[List[str]] = None) -> str:
+    """SSH接続後にflag.txtファイルを網羅的に検索します
+    
+    Args:
+        search_paths: 検索するパスのリスト（指定しない場合は主要ディレクトリを検索）
+    """
+    return await ssh_explorer.search_flag_files(search_paths)
+
+@mcp.tool()
+async def ssh_explore_system_directories() -> str:
+    """SSH接続後にシステムの主要ディレクトリを調査します"""
+    return await ssh_explorer.explore_system_directories()
+
+@mcp.tool()
+async def ssh_check_hidden_files(directory: str = '.') -> str:
+    """SSH接続後に隠しファイルを検索します
+    
+    Args:
+        directory: 検索するディレクトリ（デフォルト: 現在のディレクトリ）
+    """
+    return await ssh_explorer.check_hidden_files(directory)
+
+@mcp.tool()
+async def ssh_comprehensive_exploration() -> str:
+    """SSH接続後の包括的ディレクトリ調査を実行します（現在のディレクトリ、flagファイル、隠しファイル、システムディレクトリ）"""
+    return await ssh_explorer.comprehensive_exploration()
+
+# =============================================================================
 # ステータス・ヘルプ機能
 # =============================================================================
 
@@ -651,6 +690,13 @@ async def scanner_status() -> str:
         "  • comprehensive_recon: 包括的偵察（フルスキャン）",
         "  • domain_investigation: ドメイン専用調査",
         "  • web_security_audit: Webセキュリティ監査",
+        "",
+        "🔍 SSH Post-Connection Investigation (ssh_*):",
+        "  • ssh_explore_current_directory: 現在のディレクトリ調査",
+        "  • ssh_search_flag_files: flagファイル網羅検索",
+        "  • ssh_explore_system_directories: システムディレクトリ調査",
+        "  • ssh_check_hidden_files: 隠しファイル検索",
+        "  • ssh_comprehensive_exploration: 包括的ディレクトリ調査",
         "",
         "📊 Utility:",
         "  • scanner_status: この状態表示",
@@ -747,6 +793,6 @@ def format_result(result: OSINTResult) -> str:
 
 if __name__ == "__main__":
     print("Starting Advanced Recon Scanner MCP server...", file=sys.stderr)
-    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, ftp_scanner, osint_scanner", file=sys.stderr)
-    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, FTP anonymous login scanning, OSINT scanning", file=sys.stderr)
+    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, ftp_scanner, osint_scanner, ssh_explorer", file=sys.stderr)
+    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, FTP anonymous login scanning, OSINT scanning, SSH post-connection investigation", file=sys.stderr)
     mcp.run()
