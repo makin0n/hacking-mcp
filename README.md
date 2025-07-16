@@ -117,29 +117,29 @@ docker build --progress=plain -t recon-mcp .
 
 4. **Claude Desktop設定ファイルの配置**：
 
-   **基本設定（ボリュームマウントなし）**：
-   - `Claude/claude_desktop_config.json` を以下のパスにコピー：
-   ```
-   C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
-   ```
+**基本設定（ボリュームマウントなし）**：
+- `Claude/claude_desktop_config.json` を以下のパスにコピー：
+```
+C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
+```
 
-   **ボリュームマウント付き設定（推奨）**：
-   - `Claude/claude_desktop_config_with_volume.json` を以下のパスにコピー：
-   ```
-   C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
-   ```
-   - ファイル内のパスを実際のパスに変更：
-   ```json
-   "C:/<path to your directory>/reports:/app/reports"
-   ```
-   を以下に変更：
-   ```json
-   "C:/Users/naoki/Documents/GitHub/recon-mcp/reports:/app/reports"
-   ```
-   - ホストマシンに `reports` ディレクトリを作成：
-   ```bash
-   mkdir reports
-   ```
+**ボリュームマウント付き設定（推奨）**：
+- `Claude/claude_desktop_config_with_volume.json` を以下のパスにコピー：
+```
+C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
+```
+- ファイル内のパスを実際のパスに変更：
+```json
+"C:/<path to your directory>/reports:/app/reports"
+```
+を以下に変更：
+```json
+"C:/Users/naoki/Documents/GitHub/recon-mcp/reports:/app/reports"
+```
+- ホストマシンに `reports` ディレクトリを作成：
+```bash
+mkdir reports
+```
 
 ### Dockerビルドの詳細
 
