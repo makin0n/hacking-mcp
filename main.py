@@ -135,6 +135,16 @@ async def web_comprehensive_scan(url: str) -> str:
     """
     return await web_scanner.comprehensive_web_scan(url)
 
+@mcp.tool()
+async def web_download_file(url: str, file_path: str) -> str:
+    """Webサーバーから指定されたファイル（例: index.html, config.js）をダウンロードし、その内容を表示します。
+    
+    Args:
+        url: 対象のWebサイトのベースURL
+        file_path: ダウンロードしたいファイルのパス (例: 'js/main.js', 'robots.txt')
+    """
+    return await web_scanner.download_web_file(url, file_path)
+
 # =============================================================================
 # DNS関連ツール
 # =============================================================================
