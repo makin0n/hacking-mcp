@@ -39,17 +39,15 @@ class SSHExplorer:
             return f"エラーが発生しました: {str(e)}"
     
     async def search_flag_files(self, search_paths: Optional[List[str]] = None) -> str:
-        """flag.txtファイルを網羅的に検索します"""
+        """flag*.txtやroot.txtファイルを網羅的に検索します"""
         if search_paths is None:
-            search_paths = ['/', '/home', '/var', '/tmp', '/opt', '/usr', '/etc']
-        
-        found_flags = []
+            search_paths = ['.', '/home', '/var', '/tmp', '/opt', '/usr', '/etc', '/']
         
         for path in search_paths:
             try:
-                # findコマンドでflag.txtファイルを検索
+                # findコマンドでflag*.txtとroot.txtファイルを検索
                 result = await asyncio.create_subprocess_exec(
-                    'find', path, '-name', '*flag*', '-type', 'f', '2>/dev/null',
+                    'find', path, '-name', 'flag*.txt', '-o', '-name', 'root.txt', '-type', 'f', '2>/dev/null',
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE
                 )
@@ -58,39 +56,32 @@ class SSHExplorer:
                 
                 for file_path in files:
                     if file_path:
-                        found_flags.append(file_path)
+                        # flagファイルが見つかったら即座に内容を読み取って返す
+                        result_text = f"見つかったflagファイル: {file_path}\n"
+                        
+                        try:
+                            content_result = await asyncio.create_subprocess_exec(
+                                'cat', file_path,
+                                stdout=asyncio.subprocess.PIPE,
+                                stderr=asyncio.subprocess.PIPE
+                            )
+                            content_stdout, content_stderr = await content_result.communicate()
+                            content = content_stdout.decode().strip()
+                            
+                            if content:
+                                result_text += f"内容: {content}\n"
+                            else:
+                                result_text += f"内容: (空ファイル)\n"
+                                
+                        except Exception as e:
+                            result_text += f"内容: 読み取りエラー - {str(e)}\n"
+                        
+                        return result_text
                         
             except Exception as e:
                 continue
         
-        if not found_flags:
-            return "flag.txtファイルは見つかりませんでした。"
-        
-        result_text = "見つかったflagファイル:\n"
-        for file_path in found_flags:
-            result_text += f"- {file_path}\n"
-            
-            # ファイルの内容を読み取り
-            try:
-                content_result = await asyncio.create_subprocess_exec(
-                    'cat', file_path,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                content_stdout, content_stderr = await content_result.communicate()
-                content = content_stdout.decode().strip()
-                
-                if content:
-                    result_text += f"  内容: {content}\n"
-                else:
-                    result_text += f"  内容: (空ファイル)\n"
-                    
-            except Exception as e:
-                result_text += f"  内容: 読み取りエラー - {str(e)}\n"
-            
-            result_text += "\n"
-        
-        return result_text
+        return "flag*.txtまたはroot.txtファイルは見つかりませんでした。"
     
     async def explore_system_directories(self) -> str:
         """システムの主要ディレクトリを調査します"""
@@ -183,26 +174,10 @@ class SSHExplorer:
             return f"隠しファイル検索でエラーが発生しました: {str(e)}"
     
     async def comprehensive_exploration(self) -> str:
-        """包括的なディレクトリ調査を実行します"""
-        result_text = "=== SSH接続後の包括的ディレクトリ調査 ===\n\n"
+        """flag*.txtやroot.txtファイルを網羅的に検索します"""
+        result_text = "=== flagファイル検索 ===\n\n"
         
-        # 1. 現在のディレクトリ調査
-        result_text += "1. 現在のディレクトリ調査:\n"
-        result_text += await self.explore_current_directory()
-        result_text += "\n\n"
-        
-        # 2. flagファイル検索
-        result_text += "2. flagファイル検索:\n"
+        # flagファイル検索のみ実行
         result_text += await self.search_flag_files()
-        result_text += "\n\n"
-        
-        # 3. 隠しファイル検索
-        result_text += "3. 隠しファイル検索:\n"
-        result_text += await self.check_hidden_files()
-        result_text += "\n\n"
-        
-        # 4. システムディレクトリ調査
-        result_text += "4. システムディレクトリ調査:\n"
-        result_text += await self.explore_system_directories()
         
         return result_text 

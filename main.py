@@ -613,7 +613,7 @@ async def ssh_explore_current_directory() -> str:
 
 @mcp.tool()
 async def ssh_search_flag_files(search_paths: Optional[List[str]] = None) -> str:
-    """SSH接続後にflag.txtファイルを網羅的に検索します
+    """SSH接続後にflag*.txtやroot.txtファイルを網羅的に検索します
     
     Args:
         search_paths: 検索するパスのリスト（指定しない場合は主要ディレクトリを検索）
@@ -636,7 +636,7 @@ async def ssh_check_hidden_files(directory: str = '.') -> str:
 
 @mcp.tool()
 async def ssh_comprehensive_exploration() -> str:
-    """SSH接続後の包括的ディレクトリ調査を実行します（現在のディレクトリ、flagファイル、隠しファイル、システムディレクトリ）"""
+    """SSH接続後にflag*.txtやroot.txtファイルを網羅的に検索します"""
     return await ssh_explorer.comprehensive_exploration()
 
 # =============================================================================
@@ -693,10 +693,10 @@ async def scanner_status() -> str:
         "",
         "🔍 SSH Post-Connection Investigation (ssh_*):",
         "  • ssh_explore_current_directory: 現在のディレクトリ調査",
-        "  • ssh_search_flag_files: flagファイル網羅検索",
+        "  • ssh_search_flag_files: flag*.txtやroot.txtファイル網羅検索",
         "  • ssh_explore_system_directories: システムディレクトリ調査",
         "  • ssh_check_hidden_files: 隠しファイル検索",
-        "  • ssh_comprehensive_exploration: 包括的ディレクトリ調査",
+        "  • ssh_comprehensive_exploration: flag*.txtやroot.txtファイル検索",
         "",
         "📊 Utility:",
         "  • scanner_status: この状態表示",
