@@ -315,7 +315,7 @@ async def ftp_download_and_read_files(target: str, filenames: List[str]) -> str:
 @mcp.tool()
 async def ssh_login_test(target: str, username: str, password: str, port: int = 22) -> str:
     """
-    指定のIDとPasswordを使用してSSHログインを試し、cron権限昇格の分析も実行します。
+    指定のIDとPasswordを使用してSSHログインを試行します。
 
     Args:
         target: ログイン対象のIPアドレスまたはホスト名
@@ -336,7 +336,47 @@ async def ssh_cron_privilege_escalation(target: str, username: str, password: st
         password: ログイン試行するパスワード
         port: SSHサービスのポート番号 (デフォルト: 22)
     """
-    return await hydra_scanner.ssh_login_test(target, username, password, port)
+    return await hydra_scanner.ssh_cron_investigation(target, username, password, port)
+
+@mcp.tool()
+async def ssh_cron_investigation(target: str, username: str, password: str, port: int = 22) -> str:
+    """
+    SSHログイン後にcronジョブの詳細調査を実行します。
+
+    Args:
+        target: ログイン対象のIPアドレスまたはホスト名
+        username: ログイン試行するユーザー名
+        password: ログイン試行するパスワード
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_cron_investigation(target, username, password, port)
+
+@mcp.tool()
+async def ssh_edit_cronjob(target: str, username: str, password: str, new_content: str, port: int = 22) -> str:
+    """
+    SSH接続後に/tmp/cronjob.shファイルを直接編集します。
+
+    Args:
+        target: ログイン対象のIPアドレスまたはホスト名
+        username: ログイン試行するユーザー名
+        password: ログイン試行するパスワード
+        new_content: 新しいファイル内容
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_edit_cronjob(target, username, password, new_content, port)
+
+@mcp.tool()
+async def ssh_view_cronjob(target: str, username: str, password: str, port: int = 22) -> str:
+    """
+    SSH接続後に/tmp/cronjob.shファイルの内容を表示します。
+
+    Args:
+        target: ログイン対象のIPアドレスまたはホスト名
+        username: ログイン試行するユーザー名
+        password: ログイン試行するパスワード
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_view_cronjob(target, username, password, port)
 
 @mcp.tool()
 async def ssh_hydra_attack(target: str, username: str, password_list_path: str, port: int = 22) -> str:
@@ -440,12 +480,12 @@ async def comprehensive_recon(target: str) -> str:
         results.append(web_comprehensive)
     
     # 5. FTP匿名ログイン分析（FTPサービスが見つかった場合）
+    # 注: FTPスキャンは明示的な要求がある場合のみ実行されます
     if any(port in detailed_nmap for port in ['21', '2121']):
-        results.append("\n5. FTP Anonymous Login Analysis")
+        results.append("\n5. FTP Services Detected")
         results.append("-" * 35)
-        ftp_result = await ftp_scanner.scan_ftp_anonymous_login(target, 21)
-        ftp_report = await ftp_scanner.generate_report(ftp_result)
-        results.append(ftp_report)
+        results.append("FTPサービス（ポート21/2121）が検出されました。")
+        results.append("FTP匿名ログインのテストが必要な場合は、明示的にftp_anonymous_scanを実行してください。")
     
     return "\n".join(results)
 
@@ -678,6 +718,79 @@ async def ssh_comprehensive_exploration(host: str, username: str, password: str,
     """
     return await ssh_explorer.comprehensive_exploration(host=host, port=port, username=username, password=password)
 
+@mcp.tool()
+async def ssh_create_cron_job_for_root_copy(host: str, username: str, password: str, port: int = 22) -> str:
+    """SSH接続後、/tmp/cronjob.shにroot.txtをカレントディレクトリにコピーするcronジョブを作成します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.create_cron_job_for_root_copy(host=host, port=port, username=username, password=password)
+
+@mcp.tool()
+async def ssh_execute_cron_copy_immediately(host: str, username: str, password: str, port: int = 22) -> str:
+    """cronジョブを即座に実行してroot.txtをカレントディレクトリにコピーします
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.execute_cron_copy_immediately(host=host, port=port, username=username, password=password)
+
+@mcp.tool()
+async def ssh_add_root_privilege_escalation(host: str, username: str, password: str, port: int = 22) -> str:
+    """cronjob.shにroot権限取得のためのコマンドを追記します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.add_root_privilege_escalation(host=host, port=port, username=username, password=password)
+
+@mcp.tool()
+async def ssh_cleanup_files(host: str, username: str, password: str, file_pattern: str = "*.txt", port: int = 22) -> str:
+    """指定されたパターンのファイルを削除してディレクトリを整理します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        file_pattern: 削除するファイルのパターン（デフォルト: "*.txt"）
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.cleanup_files(host=host, port=port, username=username, password=password, file_pattern=file_pattern)
+
+@mcp.tool()
+async def ssh_list_current_files(host: str, username: str, password: str, port: int = 22) -> str:
+    """現在のディレクトリのファイル一覧を表示します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.list_current_files(host=host, port=port, username=username, password=password)
+
+@mcp.tool()
+async def ssh_keep_only_root_txt(host: str, username: str, password: str, port: int = 22) -> str:
+    """root.txt以外のファイルを削除してディレクトリを整理します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.keep_only_root_txt(host=host, port=port, username=username, password=password)
+
 # =============================================================================
 # ステータス・ヘルプ機能
 # =============================================================================
@@ -736,6 +849,15 @@ async def scanner_status() -> str:
         "  • ssh_explore_system_directories: システムディレクトリ調査",
         "  • ssh_check_hidden_files: 隠しファイル検索",
         "  • ssh_comprehensive_exploration: flag*.txtやroot.txtファイル検索",
+        "  • ssh_create_cron_job_for_root_copy: root.txtをコピーするcronジョブ作成",
+        "  • ssh_execute_cron_copy_immediately: cronジョブを即座に実行してroot.txtをコピー",
+        "  • ssh_add_root_privilege_escalation: cronjob.shにroot権限取得コマンドを追記",
+        "  • ssh_cron_investigation: cronジョブの詳細調査（権限昇格分析付き）",
+        "  • ssh_edit_cronjob: /tmp/cronjob.shファイルの直接編集",
+        "  • ssh_view_cronjob: /tmp/cronjob.shファイルの内容表示",
+        "  • ssh_cleanup_files: 指定パターンのファイル削除・整理",
+        "  • ssh_list_current_files: 現在ディレクトリのファイル一覧表示",
+        "  • ssh_keep_only_root_txt: root.txt以外のファイルを削除・整理",
         "",
         "📊 Utility:",
         "  • scanner_status: この状態表示",

