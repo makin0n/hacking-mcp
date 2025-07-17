@@ -313,84 +313,84 @@ async def ftp_download_and_read_files(target: str, filenames: List[str]) -> str:
 # =============================================================================
 
 @mcp.tool()
-async def ssh_login_test(target: str, username: str, password: str, port: int = 22) -> str:
+async def ssh_login_test(host: str, username: str, password: str, port: int = 22) -> str:
     """
     指定のIDとPasswordを使用してSSHログインを試行します。
 
     Args:
-        target: ログイン対象のIPアドレスまたはホスト名
+        host: ログイン対象のIPアドレスまたはホスト名
         username: ログイン試行するユーザー名
         password: ログイン試行するパスワード
         port: SSHサービスのポート番号 (デフォルト: 22)
     """
-    return await hydra_scanner.ssh_login_test(target, username, password, port)
+    return await hydra_scanner.ssh_login_test(host, username, password, port)
 
 @mcp.tool()
-async def ssh_cron_privilege_escalation(target: str, username: str, password: str, port: int = 22) -> str:
+async def ssh_cron_privilege_escalation(host: str, username: str, password: str, port: int = 22) -> str:
     """
     SSHログイン後にcronジョブの権限昇格の悪用を試します。
 
     Args:
-        target: ログイン対象のIPアドレスまたはホスト名
+        host: ログイン対象のIPアドレスまたはホスト名
         username: ログイン試行するユーザー名
         password: ログイン試行するパスワード
         port: SSHサービスのポート番号 (デフォルト: 22)
     """
-    return await hydra_scanner.ssh_cron_investigation(target, username, password, port)
+    return await hydra_scanner.ssh_cron_investigation(host, username, password, port)
 
 @mcp.tool()
-async def ssh_cron_investigation(target: str, username: str, password: str, port: int = 22) -> str:
+async def ssh_cron_investigation(host: str, username: str, password: str, port: int = 22) -> str:
     """
     SSHログイン後にcronジョブの詳細調査を実行します。
 
     Args:
-        target: ログイン対象のIPアドレスまたはホスト名
+        host: ログイン対象のIPアドレスまたはホスト名
         username: ログイン試行するユーザー名
         password: ログイン試行するパスワード
         port: SSHサービスのポート番号 (デフォルト: 22)
     """
-    return await hydra_scanner.ssh_cron_investigation(target, username, password, port)
+    return await hydra_scanner.ssh_cron_investigation(host, username, password, port)
 
 @mcp.tool()
-async def ssh_edit_cronjob(target: str, username: str, password: str, new_content: str, port: int = 22) -> str:
+async def ssh_edit_cronjob(host: str, username: str, password: str, new_content: str, port: int = 22) -> str:
     """
     SSH接続後に/tmp/cronjob.shファイルを直接編集します。
 
     Args:
-        target: ログイン対象のIPアドレスまたはホスト名
+        host: ログイン対象のIPアドレスまたはホスト名
         username: ログイン試行するユーザー名
         password: ログイン試行するパスワード
         new_content: 新しいファイル内容
         port: SSHサービスのポート番号 (デフォルト: 22)
     """
-    return await hydra_scanner.ssh_edit_cronjob(target, username, password, new_content, port)
+    return await hydra_scanner.ssh_edit_cronjob(host, username, password, new_content, port)
 
 @mcp.tool()
-async def ssh_view_cronjob(target: str, username: str, password: str, port: int = 22) -> str:
+async def ssh_view_cronjob(host: str, username: str, password: str, port: int = 22) -> str:
     """
     SSH接続後に/tmp/cronjob.shファイルの内容を表示します。
 
     Args:
-        target: ログイン対象のIPアドレスまたはホスト名
+        host: ログイン対象のIPアドレスまたはホスト名
         username: ログイン試行するユーザー名
         password: ログイン試行するパスワード
         port: SSHサービスのポート番号 (デフォルト: 22)
     """
-    return await hydra_scanner.ssh_view_cronjob(target, username, password, port)
+    return await hydra_scanner.ssh_view_cronjob(host, username, password, port)
 
 @mcp.tool()
-async def ssh_hydra_attack(target: str, username: str, password_list_path: str, port: int = 22) -> str:
+async def ssh_hydra_attack(host: str, username: str, password_list_path: str, port: int = 22) -> str:
     """
     Hydraを使い、SSHに対してパスワードリスト攻撃（ブルートフォース）を実行します。
 
     Args:
-        target: 攻撃対象のIPアドレスまたはホスト名
+        host: 攻撃対象のIPアドレスまたはホスト名
         username: 攻撃対象のユーザー名
         password_list_path: パスワードリストのパス（Dockerコンテナ内のパス）。
                             事前にftp_download_file等で入手したリストを /tmp/pass.txt などに保存して使用してください。
         port: SSHサービスのポート番号 (デフォルト: 22)
     """
-    return await hydra_scanner.ssh_brute_force(target, port, username, password_list_path)
+    return await hydra_scanner.ssh_brute_force(host, port, username, password_list_path)
 
 # =============================================================================
 # 統合・包括的スキャン機能
@@ -718,17 +718,7 @@ async def ssh_comprehensive_exploration(host: str, username: str, password: str,
     """
     return await ssh_explorer.comprehensive_exploration(host=host, port=port, username=username, password=password)
 
-@mcp.tool()
-async def ssh_create_cron_job_for_root_copy(host: str, username: str, password: str, port: int = 22) -> str:
-    """SSH接続後、/tmp/cronjob.shにroot.txtをカレントディレクトリにコピーするcronジョブを作成します
-    
-    Args:
-        host: 接続先ホストのIPアドレスまたはホスト名
-        username: SSHユーザー名
-        password: SSHパスワード
-        port: SSHポート番号 (デフォルト: 22)
-    """
-    return await ssh_explorer.create_cron_job_for_root_copy(host=host, port=port, username=username, password=password)
+
 
 @mcp.tool()
 async def ssh_execute_cron_copy_immediately(host: str, username: str, password: str, port: int = 22) -> str:
@@ -844,12 +834,11 @@ async def scanner_status() -> str:
         "  • web_security_audit: Webセキュリティ監査",
         "",
         "🔍 SSH Post-Connection Investigation (ssh_*):",
-        "  • ssh_explore_current_directory: 現在のディレクトリ調査",
+        "  • ssh_explore_current_directory: 現在のディレクトリ調査（テキストファイル内容読み取り付き）",
         "  • ssh_search_flag_files: flag*.txtやroot.txtファイル網羅検索",
         "  • ssh_explore_system_directories: システムディレクトリ調査",
         "  • ssh_check_hidden_files: 隠しファイル検索",
         "  • ssh_comprehensive_exploration: flag*.txtやroot.txtファイル検索",
-        "  • ssh_create_cron_job_for_root_copy: root.txtをコピーするcronジョブ作成",
         "  • ssh_execute_cron_copy_immediately: cronジョブを即座に実行してroot.txtをコピー",
         "  • ssh_add_root_privilege_escalation: cronjob.shにroot権限取得コマンドを追記",
         "  • ssh_cron_investigation: cronジョブの詳細調査（権限昇格分析付き）",
