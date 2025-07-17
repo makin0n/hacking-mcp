@@ -19,7 +19,7 @@ from modules.ssh_explorer import SSHExplorer
 from utils.report_manager import ReportManager
 
 # 統合MCPサーバーの初期化
-mcp = FastMCP("recon-scanner")
+mcp = FastMCP("hacking-mcp")
 
 # 各スキャナーモジュールのインスタンス化
 nmap_scanner = NmapScanner()

@@ -7,7 +7,7 @@ log_message() {
 }
 
 # 初期化メッセージ
-log_message "Recon Scanner v1.9.2"
+log_message "Hacking MCP v1.9.2"
 log_message "=== Network Information ==="
 
 # パブリックIPの取得
