@@ -3,14 +3,19 @@ import sys
 from typing import List, Optional
 from datetime import datetime
 import os
+import tempfile
+import shutil
+import asyncio
 
 # モジュールのインポート
 from modules.nmap_scanner import NmapScanner
 from modules.web_scanner import WebScanner
 from modules.dns_scanner import DNSScanner
 from modules.service_analyzer import ServiceAnalyzer
-
+from modules.ftp_scanner import FTPScanner
+from modules.hydra_scanner import HydraScanner
 from modules.osint_scanner import OSINTScanner, OSINTResult
+from modules.ssh_explorer import SSHExplorer
 from utils.report_manager import ReportManager
 
 # 統合MCPサーバーの初期化
@@ -21,8 +26,10 @@ nmap_scanner = NmapScanner()
 web_scanner = WebScanner()
 dns_scanner = DNSScanner()
 service_analyzer = ServiceAnalyzer()
-
+ftp_scanner = FTPScanner()
+hydra_scanner = HydraScanner()
 osint_scanner = OSINTScanner()
+ssh_explorer = SSHExplorer()
 
 # =============================================================================
 # Nmap関連ツール
@@ -128,6 +135,16 @@ async def web_comprehensive_scan(url: str) -> str:
     """
     return await web_scanner.comprehensive_web_scan(url)
 
+@mcp.tool()
+async def web_download_file(url: str, file_path: str) -> str:
+    """Webサーバーから指定されたファイル（例: index.html, config.js）をダウンロードし、その内容を表示します。
+    
+    Args:
+        url: 対象のWebサイトのベースURL
+        file_path: ダウンロードしたいファイルのパス (例: 'js/main.js', 'robots.txt')
+    """
+    return await web_scanner.download_web_file(url, file_path)
+
 # =============================================================================
 # DNS関連ツール
 # =============================================================================
@@ -192,6 +209,188 @@ async def service_quick_analysis(target: str, port: int) -> str:
         port: 分析するポート番号
     """
     return await service_analyzer.quick_port_analysis(target, port)
+
+# =============================================================================
+# FTP関連ツール
+# =============================================================================
+
+@mcp.tool()
+async def ftp_anonymous_scan(target: str, port: int = 21) -> str:
+    """FTP匿名ログインのセキュリティスキャンを実行します
+    
+    Args:
+        target: スキャン対象のホスト
+        port: FTPポート番号（デフォルト: 21）
+    """
+    scan_result = await ftp_scanner.scan_ftp_anonymous_login(target, port)
+    return await ftp_scanner.generate_report(scan_result)
+
+@mcp.tool()
+async def ftp_server_info(target: str, port: int = 21) -> str:
+    """FTPサーバーの基本情報を取得します
+    
+    Args:
+        target: スキャン対象のホスト
+        port: FTPポート番号（デフォルト: 21）
+    """
+    server_info = await ftp_scanner._get_ftp_server_info(target, port)
+    
+    result = []
+    result.append("=== FTP SERVER INFORMATION ===")
+    result.append(f"Target: {target}:{port}")
+    result.append("")
+    
+    if server_info.get("banner"):
+        result.append(f"Banner: {server_info['banner']}")
+    if server_info.get("version"):
+        result.append(f"Version: {server_info['version']}")
+    if server_info.get("error"):
+        result.append(f"Error: {server_info['error']}")
+    
+    return "\n".join(result)
+
+@mcp.tool()
+async def ftp_download_and_read_files(target: str, filenames: List[str]) -> str:
+    """
+    【最終安定版】FTPサーバーからファイルを一つずつ、間に遅延を挟んでダウンロードし、内容を読み込んで表示します。
+
+    Args:
+        target: FTPサーバーのIPアドレスまたはホスト名
+        filenames: 内容を取得したいファイル名のリスト (例: ["task.txt", "locks.txt"])
+    """
+    temp_dir = tempfile.mkdtemp()
+    results = []
+    results.append(f"=== FTP File Content Retrieval for {target} ===")
+    
+    download_success = []
+    download_errors = []
+
+    results.append("\n--- Phase 1: Downloading files (with tactical delays) ---")
+    for i, filename in enumerate(filenames):
+        local_path = os.path.join(temp_dir, filename)
+        
+        results.append(f"  - Attempting to download: {filename}")
+        download_result = await ftp_scanner.download_file(
+            target=target, port=21, username="anonymous", password="",
+            remote_path=filename, local_path=local_path
+        )
+
+        if "✅" in download_result:
+            results.append(f"    └ SUCCESS.")
+            download_success.append(filename)
+        else:
+            results.append(f"    └ FAILED. Error: {download_result}")
+            download_errors.append(filename)
+        
+        # 最後のファイルでなければ、サーバーのレート制限を回避するために15秒間の遅延を入れる
+        if i < len(filenames) - 1:
+            results.append("    - Waiting 15 seconds to bypass server rate-limiting...")
+            await asyncio.sleep(15)
+
+    results.append("\n--- Phase 2: Reading downloaded files ---")
+    if not download_success:
+        results.append("No files were successfully downloaded.")
+    else:
+        for filename in download_success:
+            try:
+                local_path = os.path.join(temp_dir, filename)
+                with open(local_path, 'r', encoding='utf-8', errors='ignore') as f:
+                    content = f.read()
+                results.append(f"\n--- Content of {filename} ---")
+                results.append(content)
+            except Exception as e:
+                results.append(f"\n--- Failed to read local file {filename} ---")
+                results.append(f"Error: {e}")
+
+    shutil.rmtree(temp_dir)
+    results.append("\n========================================")
+    results.append("Process finished.")
+    
+    return "\n".join(results)
+
+# =============================================================================
+# ブルートフォース攻撃ツール
+# =============================================================================
+
+@mcp.tool()
+async def ssh_login_test(host: str, username: str, password: str, port: int = 22) -> str:
+    """
+    指定のIDとPasswordを使用してSSHログインを試行します。
+
+    Args:
+        host: ログイン対象のIPアドレスまたはホスト名
+        username: ログイン試行するユーザー名
+        password: ログイン試行するパスワード
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_login_test(host, username, password, port)
+
+@mcp.tool()
+async def ssh_cron_privilege_escalation(host: str, username: str, password: str, port: int = 22) -> str:
+    """
+    SSHログイン後にcronジョブの権限昇格の悪用を試します。
+
+    Args:
+        host: ログイン対象のIPアドレスまたはホスト名
+        username: ログイン試行するユーザー名
+        password: ログイン試行するパスワード
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_cron_investigation(host, username, password, port)
+
+@mcp.tool()
+async def ssh_cron_investigation(host: str, username: str, password: str, port: int = 22) -> str:
+    """
+    SSHログイン後にcronジョブの詳細調査を実行します。
+
+    Args:
+        host: ログイン対象のIPアドレスまたはホスト名
+        username: ログイン試行するユーザー名
+        password: ログイン試行するパスワード
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_cron_investigation(host, username, password, port)
+
+@mcp.tool()
+async def ssh_edit_cronjob(host: str, username: str, password: str, new_content: str, port: int = 22) -> str:
+    """
+    SSH接続後に/tmp/cronjob.shファイルを直接編集します。
+
+    Args:
+        host: ログイン対象のIPアドレスまたはホスト名
+        username: ログイン試行するユーザー名
+        password: ログイン試行するパスワード
+        new_content: 新しいファイル内容
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_edit_cronjob(host, username, password, new_content, port)
+
+@mcp.tool()
+async def ssh_view_cronjob(host: str, username: str, password: str, port: int = 22) -> str:
+    """
+    SSH接続後に/tmp/cronjob.shファイルの内容を表示します。
+
+    Args:
+        host: ログイン対象のIPアドレスまたはホスト名
+        username: ログイン試行するユーザー名
+        password: ログイン試行するパスワード
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_view_cronjob(host, username, password, port)
+
+@mcp.tool()
+async def ssh_hydra_attack(host: str, username: str, password_list_path: str, port: int = 22) -> str:
+    """
+    Hydraを使い、SSHに対してパスワードリスト攻撃（ブルートフォース）を実行します。
+
+    Args:
+        host: 攻撃対象のIPアドレスまたはホスト名
+        username: 攻撃対象のユーザー名
+        password_list_path: パスワードリストのパス（Dockerコンテナ内のパス）。
+                            事前にftp_download_file等で入手したリストを /tmp/pass.txt などに保存して使用してください。
+        port: SSHサービスのポート番号 (デフォルト: 22)
+    """
+    return await hydra_scanner.ssh_brute_force(host, port, username, password_list_path)
 
 # =============================================================================
 # 統合・包括的スキャン機能
@@ -279,6 +478,14 @@ async def comprehensive_recon(target: str) -> str:
         results.append("-" * 30)
         web_comprehensive = await web_scanner.comprehensive_web_scan(web_target)
         results.append(web_comprehensive)
+    
+    # 5. FTP匿名ログイン分析（FTPサービスが見つかった場合）
+    # 注: FTPスキャンは明示的な要求がある場合のみ実行されます
+    if any(port in detailed_nmap for port in ['21', '2121']):
+        results.append("\n5. FTP Services Detected")
+        results.append("-" * 35)
+        results.append("FTPサービス（ポート21/2121）が検出されました。")
+        results.append("FTP匿名ログインのテストが必要な場合は、明示的にftp_anonymous_scanを実行してください。")
     
     return "\n".join(results)
 
@@ -446,6 +653,135 @@ async def comprehensive_recon_with_report(target: str) -> str:
     return final_message
 
 # =============================================================================
+# SSH接続後調査ツール
+# =============================================================================
+
+@mcp.tool()
+async def ssh_explore_current_directory(host: str, username: str, password: str, port: int = 22) -> str:
+    """SSH接続後のリモートサーバー上の現在のディレクトリを調査します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.explore_current_directory(host=host, port=port, username=username, password=password)
+
+@mcp.tool()
+async def ssh_search_flag_files(host: str, username: str, password: str, port: int = 22, search_paths: Optional[List[str]] = None) -> str:
+    """SSH接続後、リモートサーバー上のflag*.txtやroot.txtファイルを網羅的に検索します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+        search_paths: 検索するパスのリスト（指定しない場合は主要ディレクトリを検索）
+    """
+    return await ssh_explorer.search_flag_files(host=host, port=port, username=username, password=password, search_paths=search_paths)
+
+@mcp.tool()
+async def ssh_explore_system_directories(host: str, username: str, password: str, port: int = 22) -> str:
+    """SSH接続後、リモートサーバーのシステムの主要ディレクトリを調査します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.explore_system_directories(host=host, port=port, username=username, password=password)
+
+@mcp.tool()
+async def ssh_check_hidden_files(host: str, username: str, password: str, port: int = 22, directory: str = '.') -> str:
+    """SSH接続後、リモートサーバー上の隠しファイルを検索します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+        directory: 検索するディレクトリ（デフォルト: 現在のディレクトリ）
+    """
+    return await ssh_explorer.check_hidden_files(host=host, port=port, username=username, password=password, directory=directory)
+
+@mcp.tool()
+async def ssh_comprehensive_exploration(host: str, username: str, password: str, port: int = 22) -> str:
+    """SSH接続後、リモートサーバー上のflag*.txtやroot.txtファイルを網羅的に検索します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.comprehensive_exploration(host=host, port=port, username=username, password=password)
+
+
+
+@mcp.tool()
+async def ssh_execute_cron_copy_immediately(host: str, username: str, password: str, port: int = 22) -> str:
+    """cronジョブを即座に実行してroot.txtをカレントディレクトリにコピーします
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.execute_cron_copy_immediately(host=host, port=port, username=username, password=password)
+
+@mcp.tool()
+async def ssh_add_root_privilege_escalation(host: str, username: str, password: str, port: int = 22) -> str:
+    """cronjob.shにroot権限取得のためのコマンドを追記します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.add_root_privilege_escalation(host=host, port=port, username=username, password=password)
+
+@mcp.tool()
+async def ssh_cleanup_files(host: str, username: str, password: str, file_pattern: str = "*.txt", port: int = 22) -> str:
+    """指定されたパターンのファイルを削除してディレクトリを整理します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        file_pattern: 削除するファイルのパターン（デフォルト: "*.txt"）
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.cleanup_files(host=host, port=port, username=username, password=password, file_pattern=file_pattern)
+
+@mcp.tool()
+async def ssh_list_current_files(host: str, username: str, password: str, port: int = 22) -> str:
+    """現在のディレクトリのファイル一覧を表示します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.list_current_files(host=host, port=port, username=username, password=password)
+
+@mcp.tool()
+async def ssh_keep_only_root_txt(host: str, username: str, password: str, port: int = 22) -> str:
+    """root.txt以外のファイルを削除してディレクトリを整理します
+    
+    Args:
+        host: 接続先ホストのIPアドレスまたはホスト名
+        username: SSHユーザー名
+        password: SSHパスワード
+        port: SSHポート番号 (デフォルト: 22)
+    """
+    return await ssh_explorer.keep_only_root_txt(host=host, port=port, username=username, password=password)
+
+# =============================================================================
 # ステータス・ヘルプ機能
 # =============================================================================
 
@@ -459,6 +795,7 @@ async def scanner_status() -> str:
         f"Web Scanner: {await web_scanner.get_status()}",
         f"DNS Scanner: {await dns_scanner.get_status()}",
         f"Service Analyzer: {await service_analyzer.get_status()}",
+        f"FTP Scanner: {await ftp_scanner.get_status()}",
         "",
         "=== AVAILABLE TOOL CATEGORIES ===",
         "",
@@ -486,11 +823,30 @@ async def scanner_status() -> str:
         "  • service_analyze_nmap: nmapの結果を分析",
         "  • service_quick_analysis: 特定ポートの分析",
         "",
+        "📁 FTP Security (ftp_*):",
+        "  • ftp_anonymous_scan: FTP匿名ログインスキャン",
+        "  • ftp_server_info: FTPサーバー情報取得",
+        "",
         "🚀 Integrated Reconnaissance:",
         "  • quick_recon: クイック偵察（nmap + web基本）",
         "  • comprehensive_recon: 包括的偵察（フルスキャン）",
         "  • domain_investigation: ドメイン専用調査",
         "  • web_security_audit: Webセキュリティ監査",
+        "",
+        "🔍 SSH Post-Connection Investigation (ssh_*):",
+        "  • ssh_explore_current_directory: 現在のディレクトリ調査（テキストファイル内容読み取り付き）",
+        "  • ssh_search_flag_files: flag*.txtやroot.txtファイル網羅検索",
+        "  • ssh_explore_system_directories: システムディレクトリ調査",
+        "  • ssh_check_hidden_files: 隠しファイル検索",
+        "  • ssh_comprehensive_exploration: flag*.txtやroot.txtファイル検索",
+        "  • ssh_execute_cron_copy_immediately: cronジョブを即座に実行してroot.txtをコピー",
+        "  • ssh_add_root_privilege_escalation: cronjob.shにroot権限取得コマンドを追記",
+        "  • ssh_cron_investigation: cronジョブの詳細調査（権限昇格分析付き）",
+        "  • ssh_edit_cronjob: /tmp/cronjob.shファイルの直接編集",
+        "  • ssh_view_cronjob: /tmp/cronjob.shファイルの内容表示",
+        "  • ssh_cleanup_files: 指定パターンのファイル削除・整理",
+        "  • ssh_list_current_files: 現在ディレクトリのファイル一覧表示",
+        "  • ssh_keep_only_root_txt: root.txt以外のファイルを削除・整理",
         "",
         "📊 Utility:",
         "  • scanner_status: この状態表示",
@@ -587,6 +943,6 @@ def format_result(result: OSINTResult) -> str:
 
 if __name__ == "__main__":
     print("Starting Advanced Recon Scanner MCP server...", file=sys.stderr)
-    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, osint_scanner", file=sys.stderr)
-    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, OSINT scanning", file=sys.stderr)
+    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, ftp_scanner, osint_scanner, ssh_explorer", file=sys.stderr)
+    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, FTP anonymous login scanning, OSINT scanning, SSH post-connection investigation", file=sys.stderr)
     mcp.run()

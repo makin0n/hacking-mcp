@@ -351,7 +351,55 @@ class WebScanner:
             result.append("No common directories/files found.")
         
         return "\n".join(result)
-    
+
+    async def download_web_file(self, url: str, file_path: str) -> str:
+        """指定されたWebサーバー上のファイルのコンテンツをダウンロードします。"""
+        validated_url = self._validate_url(url)
+        if not validated_url:
+            return "Error: Invalid base URL format"
+
+        try:
+            # ベースURLとファイルパスを安全に結合
+            target_url = urljoin(validated_url, file_path)
+            
+            async with aiohttp.ClientSession(timeout=self.timeout, headers=self.headers) as session:
+                async with session.get(target_url) as response:
+                    result = [
+                        f"=== File Download: {file_path} ===",
+                        f"URL: {target_url}",
+                        f"Status: {response.status} {response.reason}",
+                        ""
+                    ]
+                    
+                    if response.status == 200:
+                        # コンテンツタイプがテキストベースか大まかにチェック
+                        content_type = response.headers.get('Content-Type', '').lower()
+                        if 'text' in content_type or 'json' in content_type or 'javascript' in content_type or 'xml' in content_type:
+                            content = await response.text(encoding='utf-8', errors='ignore')
+                            result.append("--- File Content (UTF-8 decoded) ---")
+                            # コンテンツが長すぎる場合に備えて制限をかける
+                            result.append(content[:4000]) 
+                            if len(content) > 4000:
+                                result.append("\n... (Content truncated at 4000 characters)")
+                        else:
+                            # バイナリファイルの場合はその旨を伝える
+                            content_length = response.headers.get('Content-Length', 'N/A')
+                            result.append(f"File appears to be binary (Content-Type: {content_type}).")
+                            result.append(f"Content-Length: {content_length}")
+                            result.append("Binary content cannot be displayed directly.")
+                    
+                    elif response.status == 404:
+                        result.append(f"Error: File not found at {target_url}")
+                    else:
+                        result.append(f"Error: Received unexpected status code {response.status}")
+                    
+                    return "\n".join(result)
+
+        except aiohttp.ClientError as e:
+            return f"Error connecting to {validated_url}: {str(e)}"
+        except Exception as e:
+            return f"An unexpected error occurred: {str(e)}"
+
     async def _perform_comprehensive_scan(self, url: str) -> str:
         """実際の包括的スキャンの処理を行うプライベートメソッド"""
         result = [

@@ -11,8 +11,8 @@ Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供
 - 包括的なポートスキャンとサービス検出
 - Webサイトの隠しディレクトリ探索
 - サブドメインの自動探索
-- 脆弱性データベース（Exploit-DB/NVD）連携によるバージョン脆弱性自動検索
 - OSINT調査
+- SSH接続後のディレクトリ調査とflagファイル検索
 - 日本語での詳細なレポート出力
 
 ## 機能の説明
@@ -49,11 +49,45 @@ Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供
   - サービスのリスク評価
   - 推奨対策の提示
 
-### 7. レポート生成
+### 7. SSHログイン機能
+- 指定のIDとPasswordを使用してSSHログインを試行します。
+- 例：
+  - 単一の認証情報でのSSHログインテスト
+  - ログイン成功時のシステム情報取得
+  - 認証失敗時の詳細エラー情報
+
+### 8. SSHブルートフォース攻撃
+- Hydraを使用してSSHに対してパスワードリスト攻撃を実行します。
+- 例：
+  - パスワードリストを使用したブルートフォース攻撃
+  - 成功したパスワードの自動検出
+  - 攻撃結果の詳細レポート
+
+### 9. FTP匿名ログインスキャン
+- FTPサーバーの匿名ログイン機能をテストし、セキュリティリスクを分析します。
+- 例：
+  - FTPサーバーのバナー情報取得
+  - 匿名ログインの可否確認
+  - アクセス可能なファイル・ディレクトリの列挙
+  - セキュリティ問題の特定と推奨対策
+
+### 10. SSH接続後調査
+- SSHログイン後のディレクトリ調査とflagファイル検索を行います。
+- 例：
+  - 現在のディレクトリの調査
+  - flag*.txtやroot.txtファイルの網羅的検索
+  - 隠しファイルの検索
+  - システムディレクトリの調査
+  - root.txtをカレントディレクトリにコピーするcronジョブの作成と実行
+  - cronjob.shにroot権限取得コマンドの追記
+  - cronジョブの詳細調査（権限昇格分析付き）
+  - /tmp/cronjob.shファイルの直接編集と内容表示
+  - ファイル管理機能（削除・整理・一覧表示）
+
+### 11. レポート生成
 - スキャン結果や分析内容を日本語で分かりやすくレポートとして出力します。
 - 例：
   - スキャンごとの詳細レポート
-  - 脆弱性一覧と対策まとめ
 
 ## 必要条件
 
@@ -87,29 +121,29 @@ docker build --progress=plain -t recon-mcp .
 
 4. **Claude Desktop設定ファイルの配置**：
 
-   **基本設定（ボリュームマウントなし）**：
-   - `Claude/claude_desktop_config.json` を以下のパスにコピー：
-   ```
-   C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
-   ```
+**基本設定（ボリュームマウントなし）**：
+- `Claude/claude_desktop_config.json` を以下のパスにコピー：
+```
+C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
+```
 
-   **ボリュームマウント付き設定（推奨）**：
-   - `Claude/claude_desktop_config_with_volume.json` を以下のパスにコピー：
-   ```
-   C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
-   ```
-   - ファイル内のパスを実際のパスに変更：
-   ```json
-   "C:/<path to your directory>/reports:/app/reports"
-   ```
-   を以下に変更：
-   ```json
-   "C:/Users/naoki/Documents/GitHub/recon-mcp/reports:/app/reports"
-   ```
-   - ホストマシンに `reports` ディレクトリを作成：
-   ```bash
-   mkdir reports
-   ```
+**ボリュームマウント付き設定（推奨）**：
+- `Claude/claude_desktop_config_with_volume.json` を以下のパスにコピー：
+```
+C:\Users\<ユーザー名>\AppData\Roaming\Claude\claude_desktop_config.json
+```
+- ファイル内のパスを実際のパスに変更：
+```json
+"C:/<path to your directory>/reports:/app/reports"
+```
+を以下に変更：
+```json
+"C:/Users/naoki/Documents/GitHub/recon-mcp/reports:/app/reports"
+```
+- ホストマシンに `reports` ディレクトリを作成：
+```bash
+mkdir reports
+```
 
 ### Dockerビルドの詳細
 
@@ -180,30 +214,108 @@ docker run -it -v $(pwd)/reports:/app/reports recon-mcp
 <対象IPアドレス>のOSINT調査をして
 ```
 
+7. **SSHログインテスト**：
+```
+<対象IPアドレス>にユーザー名<username>とパスワード<password>でSSHログインを試して
+```
+
+8. **SSHブルートフォース攻撃**：
+```
+<対象IPアドレス>にユーザー名<username>でパスワードリスト<path>を使用してSSHブルートフォース攻撃を実行して
+```
+
+9. **FTP匿名ログインスキャン**：
+```
+<対象IPアドレス>のFTP匿名ログインをテストして
+```
+
+10. **SSH接続後調査**：
+```
+SSH接続後のflagファイルを探して
+```
+
+11. **SSH接続後のcronジョブ作成**：
+```
+SSH接続後にroot.txtをコピーするcronジョブを作成して
+```
+
+12. **cronジョブの即座実行**：
+```
+作成したcronジョブを即座に実行してroot.txtをコピーして
+```
+
+13. **root権限取得コマンドの追記**：
+```
+cronjob.shにroot権限取得コマンドを追記して
+```
+
+14. **cronジョブの詳細調査**：
+```
+SSH接続後にcronジョブを詳細調査して
+```
+
+14. **cronjob.shファイルの編集**：
+```
+SSH接続後に/tmp/cronjob.shファイルを編集して
+```
+
+15. **cronjob.shファイルの表示**：
+```
+SSH接続後に/tmp/cronjob.shファイルの内容を表示して
+```
+
+16. **ファイル整理**：
+```
+SSH接続後にファイルを整理して
+```
+
+17. **ファイル一覧表示**：
+```
+SSH接続後に現在のファイル一覧を表示して
+```
+
+18. **root.txtのみ残す**：
+```
+SSH接続後にroot.txt以外のファイルを削除して
+```
+
 ### スキャンの流れ
 
 #### 推奨されるスキャン手順：
 
 1. **基本スキャンで開放ポートを特定**：
-   ```
-   nmap_basic_scan("192.168.1.1")
-   ```
+```
+nmap_basic_scan("192.168.1.1")
+```
 
 2. **結果から開放ポートを確認**：
-   ```
-   開放ポート: 22, 80, 443
-   ```
+```
+開放ポート: 22, 80, 443
+```
 
 3. **詳細スキャンでバージョン情報を取得**：
-   ```
-   nmap_detailed_scan("192.168.1.1", "22,80,443")
-   ```
+```
+nmap_detailed_scan("192.168.1.1", "22,80,443")
+```
 
 ### 例
 ```
 http://example.com/のディレクトリを探索して
 example.comのサブドメインを探して
 example.comのOSINT調査をして
+192.168.1.100にユーザー名adminとパスワードpassword123でSSHログインを試して
+192.168.1.100にユーザー名adminでパスワードリスト/tmp/passwords.txtを使用してSSHブルートフォース攻撃を実行して
+192.168.1.100のFTP匿名ログインをテストして
+SSH接続後のflagファイルを探して
+SSH接続後にroot.txtをコピーするcronジョブを作成して
+作成したcronジョブを即座に実行してroot.txtをコピーして
+cronjob.shにroot権限取得コマンドを追記して
+SSH接続後にcronジョブを詳細調査して
+SSH接続後に/tmp/cronjob.shファイルを編集して
+SSH接続後に/tmp/cronjob.shファイルの内容を表示して
+SSH接続後にファイルを整理して
+SSH接続後に現在のファイル一覧を表示して
+SSH接続後にroot.txt以外のファイルを削除して
 ```
 
 ### 注意事項
@@ -222,6 +334,8 @@ example.comのOSINT調査をして
 - サブドメインスキャンのタイムアウト：5分
 - 同時スキャン数：1つのスキャンのみ実行可能
 - 詳細スキャン：ポート指定が必須
+- FTPスキャン：タイムアウト10秒
+- SSH調査：flagファイルが見つかったら即座に調査終了
 
 ## ライセンス
 
