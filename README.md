@@ -1,6 +1,6 @@
-# Recon MCP - 高度なネットワークスキャン・ペネトレーションテストツール
+# Hacking MCP - 高度なネットワークスキャン・ペネトレーションテストツール
 
-Recon MCPは、Claude DesktopとDockerを活用した包括的なネットワークスキャン・ペネトレーションテストツールです。
+Hacking MCPは、Claude DesktopとDockerを活用した包括的なネットワークスキャン・ペネトレーションテストツールです。
 nmap、Hydra、各種セキュリティツールを使用してターゲットシステムの詳細な分析を行い、
 Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供します。
 
@@ -76,8 +76,8 @@ Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供
 
 ### 1. リポジトリのクローン
 ```bash
-git clone https://github.com/yourusername/recon-mcp.git
-cd recon-mcp
+git clone https://github.com/yourusername/hacking-mcp.git
+cd hacking-mcp
 ```
 
 ### 2. Dockerイメージのビルド
@@ -122,12 +122,12 @@ copy "Claude\claude_desktop_config_with_volume.json" "%APPDATA%\Claude\claude_de
 2. 設定ファイル内のパスを実際のパスに変更:
 ```json
 {
-  "mcpServers": {
-    "recon-mcp": {
-      "command": "docker",
-      "args": ["run", "--rm", "-v", "C:/Users/<ユーザー名>/Documents/GitHub/recon-mcp/reports:/app/reports", "--network", "host", "-i", "hacking-mcp"]
+      "mcpServers": {
+      "hacking-mcp": {
+        "command": "docker",
+        "args": ["run", "--rm", "-v", "C:/Users/<ユーザー名>/Documents/GitHub/hacking-mcp/reports:/app/reports", "--network", "host", "-i", "hacking-mcp"]
+      }
     }
-  }
 }
 ```
 
@@ -275,7 +275,7 @@ https://example.comのWebセキュリティ監査を実行して
 ## 📁 プロジェクト構造
 
 ```
-recon-mcp/
+hacking-mcp/
 ├── main.py                 # メインMCPサーバー
 ├── Dockerfile             # Docker設定
 ├── requirements.txt       # Python依存関係
