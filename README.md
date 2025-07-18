@@ -125,7 +125,7 @@ copy "Claude\claude_desktop_config_with_volume.json" "%APPDATA%\Claude\claude_de
   "mcpServers": {
     "recon-mcp": {
       "command": "docker",
-      "args": ["run", "--rm", "-v", "C:/Users/naoki/Documents/GitHub/recon-mcp/reports:/app/reports", "--network", "host", "-i", "hacking-mcp"]
+      "args": ["run", "--rm", "-v", "C:/Users/<ユーザー名>>/Documents/GitHub/recon-mcp/reports:/app/reports", "--network", "host", "-i", "hacking-mcp"]
     }
   }
 }
