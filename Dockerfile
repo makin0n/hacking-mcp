@@ -22,11 +22,11 @@ RUN apt-get update && \
     && apt-get clean
 
 # 非rootユーザーの作成
-RUN useradd -m -s /bin/bash recon
+RUN useradd -m -s /bin/bash hacker
 
 # sudoの設定
-RUN echo 'recon ALL=(ALL) NOPASSWD: /usr/bin/nmap' >> /etc/sudoers && \
-    echo 'recon ALL=(ALL) NOPASSWD: /usr/bin/nmap *' >> /etc/sudoers
+RUN echo 'hacker ALL=(ALL) NOPASSWD: /usr/bin/nmap' >> /etc/sudoers && \
+    echo 'hacker ALL=(ALL) NOPASSWD: /usr/bin/nmap *' >> /etc/sudoers
 
 # 作業ディレクトリの設定
 WORKDIR /app
@@ -56,10 +56,10 @@ COPY startup.sh .
 RUN dos2unix startup.sh && chmod +x startup.sh
 
 # 権限の設定
-RUN chown -R recon:recon /app
+RUN chown -R hacker:hacker /app
 
 # 非rootユーザーに切り替え
-USER recon
+USER hacker
 
 # スタートアップスクリプトを実行
 CMD ["/bin/bash", "./startup.sh"]

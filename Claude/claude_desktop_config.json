@@ -1,6 +1,6 @@
 {
   "mcpServers": {
-    "recon-mcp": {
+    "hacking-mcp": {
       "command": "docker",
       "args": ["run", "--rm", "-i", "hacking-mcp"]
     }
