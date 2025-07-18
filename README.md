@@ -76,7 +76,7 @@ Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供
 
 ### 1. リポジトリのクローン
 ```bash
-git clone https://github.com/yourusername/hacking-mcp.git
+git clone https://github.com/makin0n/hacking-mcp.git
 cd hacking-mcp
 ```
 
@@ -96,7 +96,7 @@ docker build --progress=plain -t hacking-mcp .
 - ベースイメージ: Python 3.11-slim
 - インストールツール: nmap、dnsutils、curl、その他のセキュリティツール
 - Python依存関係: anthropic、mcp、playwright、paramiko等
-- セキュリティ設定: 非rootユーザー（recon）で実行
+- セキュリティ設定: 非rootユーザー（hacker）で実行
 
 ### 3. Claude Desktop設定ファイルの配置
 
@@ -122,11 +122,10 @@ copy "Claude\claude_desktop_config_with_volume.json" "%APPDATA%\Claude\claude_de
 2. 設定ファイル内のパスを実際のパスに変更:
 ```json
 {
-      "mcpServers": {
-      "hacking-mcp": {
-        "command": "docker",
-        "args": ["run", "--rm", "-v", "C:/Users/<ユーザー名>/Documents/GitHub/hacking-mcp/reports:/app/reports", "--network", "host", "-i", "hacking-mcp"]
-      }
+  "mcpServers": {
+    "hacking-mcp": {
+      "command": "docker",
+      "args": ["run", "--rm", "-v", "C:/Users/<ユーザー名>/Documents/GitHub/hacking-mcp/reports:/app/reports", "--network", "host", "-i", "hacking-mcp"]
     }
 }
 ```
