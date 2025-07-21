@@ -12,7 +12,6 @@ from modules.nmap_scanner import NmapScanner
 from modules.web_scanner import WebScanner
 from modules.dns_scanner import DNSScanner
 from modules.service_analyzer import ServiceAnalyzer
-from modules.hydra_scanner import HydraScanner
 from modules.ssh_explorer import SSHExplorer
 from utils.report_manager import ReportManager
 
@@ -24,7 +23,6 @@ nmap_scanner = NmapScanner()
 web_scanner = WebScanner()
 dns_scanner = DNSScanner()
 service_analyzer = ServiceAnalyzer()
-hydra_scanner = HydraScanner()
 ssh_explorer = SSHExplorer()
 
 # =============================================================================
@@ -208,89 +206,7 @@ async def service_quick_analysis(target: str, port: int) -> str:
 
 
 
-# =============================================================================
-# ブルートフォース攻撃ツール
-# =============================================================================
 
-@mcp.tool()
-async def ssh_login_test(host: str, username: str, password: str, port: int = 22) -> str:
-    """
-    指定のIDとPasswordを使用してSSHログインを試行します。
-
-    Args:
-        host: ログイン対象のIPアドレスまたはホスト名
-        username: ログイン試行するユーザー名
-        password: ログイン試行するパスワード
-        port: SSHサービスのポート番号 (デフォルト: 22)
-    """
-    return await hydra_scanner.ssh_login_test(host, username, password, port)
-
-@mcp.tool()
-async def ssh_cron_privilege_escalation(host: str, username: str, password: str, port: int = 22) -> str:
-    """
-    SSHログイン後にcronジョブの権限昇格の悪用を試します。
-
-    Args:
-        host: ログイン対象のIPアドレスまたはホスト名
-        username: ログイン試行するユーザー名
-        password: ログイン試行するパスワード
-        port: SSHサービスのポート番号 (デフォルト: 22)
-    """
-    return await hydra_scanner.ssh_cron_investigation(host, username, password, port)
-
-@mcp.tool()
-async def ssh_cron_investigation(host: str, username: str, password: str, port: int = 22) -> str:
-    """
-    SSHログイン後にcronジョブの詳細調査を実行します。
-
-    Args:
-        host: ログイン対象のIPアドレスまたはホスト名
-        username: ログイン試行するユーザー名
-        password: ログイン試行するパスワード
-        port: SSHサービスのポート番号 (デフォルト: 22)
-    """
-    return await hydra_scanner.ssh_cron_investigation(host, username, password, port)
-
-@mcp.tool()
-async def ssh_edit_cronjob(host: str, username: str, password: str, new_content: str, port: int = 22) -> str:
-    """
-    SSH接続後に/tmp/cronjob.shファイルを直接編集します。
-
-    Args:
-        host: ログイン対象のIPアドレスまたはホスト名
-        username: ログイン試行するユーザー名
-        password: ログイン試行するパスワード
-        new_content: 新しいファイル内容
-        port: SSHサービスのポート番号 (デフォルト: 22)
-    """
-    return await hydra_scanner.ssh_edit_cronjob(host, username, password, new_content, port)
-
-@mcp.tool()
-async def ssh_view_cronjob(host: str, username: str, password: str, port: int = 22) -> str:
-    """
-    SSH接続後に/tmp/cronjob.shファイルの内容を表示します。
-
-    Args:
-        host: ログイン対象のIPアドレスまたはホスト名
-        username: ログイン試行するユーザー名
-        password: ログイン試行するパスワード
-        port: SSHサービスのポート番号 (デフォルト: 22)
-    """
-    return await hydra_scanner.ssh_view_cronjob(host, username, password, port)
-
-@mcp.tool()
-async def ssh_hydra_attack(host: str, username: str, password_list_path: str, port: int = 22) -> str:
-    """
-    Hydraを使い、SSHに対してパスワードリスト攻撃（ブルートフォース）を実行します。
-
-    Args:
-        host: 攻撃対象のIPアドレスまたはホスト名
-        username: 攻撃対象のユーザー名
-        password_list_path: パスワードリストのパス（Dockerコンテナ内のパス）。
-                            事前にftp_download_file等で入手したリストを /tmp/pass.txt などに保存して使用してください。
-        port: SSHサービスのポート番号 (デフォルト: 22)
-    """
-    return await hydra_scanner.ssh_brute_force(host, port, username, password_list_path)
 
 # =============================================================================
 # 統合・包括的スキャン機能
@@ -719,9 +635,6 @@ async def scanner_status() -> str:
         "  • ssh_comprehensive_exploration: flag*.txtやroot.txtファイル検索",
         "  • ssh_execute_cron_copy_immediately: cronジョブを即座に実行してroot.txtをコピー",
         "  • ssh_add_root_privilege_escalation: cronjob.shにroot権限取得コマンドを追記",
-        "  • ssh_cron_investigation: cronジョブの詳細調査（権限昇格分析付き）",
-        "  • ssh_edit_cronjob: /tmp/cronjob.shファイルの直接編集",
-        "  • ssh_view_cronjob: /tmp/cronjob.shファイルの内容表示",
         "  • ssh_cleanup_files: 指定パターンのファイル削除・整理",
         "  • ssh_list_current_files: 現在ディレクトリのファイル一覧表示",
         "  • ssh_keep_only_root_txt: root.txt以外のファイルを削除・整理",
