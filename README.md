@@ -284,7 +284,7 @@ hacking-mcp/
 │   ├── web_scanner.py    # Webスキャン機能
 │   ├── dns_scanner.py    # DNS調査機能
 
-│   ├── ftp_scanner.py    # FTPスキャン機能
+
 │   ├── hydra_scanner.py  # Hydraブルートフォース機能
 │   ├── ssh_explorer.py   # SSH調査機能
 │   └── service_analyzer.py # サービス分析機能

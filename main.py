@@ -12,7 +12,6 @@ from modules.nmap_scanner import NmapScanner
 from modules.web_scanner import WebScanner
 from modules.dns_scanner import DNSScanner
 from modules.service_analyzer import ServiceAnalyzer
-from modules.ftp_scanner import FTPScanner
 from modules.hydra_scanner import HydraScanner
 from modules.ssh_explorer import SSHExplorer
 from utils.report_manager import ReportManager
@@ -25,7 +24,6 @@ nmap_scanner = NmapScanner()
 web_scanner = WebScanner()
 dns_scanner = DNSScanner()
 service_analyzer = ServiceAnalyzer()
-ftp_scanner = FTPScanner()
 hydra_scanner = HydraScanner()
 ssh_explorer = SSHExplorer()
 
@@ -208,103 +206,7 @@ async def service_quick_analysis(target: str, port: int) -> str:
     """
     return await service_analyzer.quick_port_analysis(target, port)
 
-# =============================================================================
-# FTP関連ツール
-# =============================================================================
 
-@mcp.tool()
-async def ftp_anonymous_scan(target: str, port: int = 21) -> str:
-    """FTP匿名ログインのセキュリティスキャンを実行します
-    
-    Args:
-        target: スキャン対象のホスト
-        port: FTPポート番号（デフォルト: 21）
-    """
-    scan_result = await ftp_scanner.scan_ftp_anonymous_login(target, port)
-    return await ftp_scanner.generate_report(scan_result)
-
-@mcp.tool()
-async def ftp_server_info(target: str, port: int = 21) -> str:
-    """FTPサーバーの基本情報を取得します
-    
-    Args:
-        target: スキャン対象のホスト
-        port: FTPポート番号（デフォルト: 21）
-    """
-    server_info = await ftp_scanner._get_ftp_server_info(target, port)
-    
-    result = []
-    result.append("=== FTP SERVER INFORMATION ===")
-    result.append(f"Target: {target}:{port}")
-    result.append("")
-    
-    if server_info.get("banner"):
-        result.append(f"Banner: {server_info['banner']}")
-    if server_info.get("version"):
-        result.append(f"Version: {server_info['version']}")
-    if server_info.get("error"):
-        result.append(f"Error: {server_info['error']}")
-    
-    return "\n".join(result)
-
-@mcp.tool()
-async def ftp_download_and_read_files(target: str, filenames: List[str]) -> str:
-    """
-    【最終安定版】FTPサーバーからファイルを一つずつ、間に遅延を挟んでダウンロードし、内容を読み込んで表示します。
-
-    Args:
-        target: FTPサーバーのIPアドレスまたはホスト名
-        filenames: 内容を取得したいファイル名のリスト (例: ["task.txt", "locks.txt"])
-    """
-    temp_dir = tempfile.mkdtemp()
-    results = []
-    results.append(f"=== FTP File Content Retrieval for {target} ===")
-    
-    download_success = []
-    download_errors = []
-
-    results.append("\n--- Phase 1: Downloading files (with tactical delays) ---")
-    for i, filename in enumerate(filenames):
-        local_path = os.path.join(temp_dir, filename)
-        
-        results.append(f"  - Attempting to download: {filename}")
-        download_result = await ftp_scanner.download_file(
-            target=target, port=21, username="anonymous", password="",
-            remote_path=filename, local_path=local_path
-        )
-
-        if "✅" in download_result:
-            results.append(f"    └ SUCCESS.")
-            download_success.append(filename)
-        else:
-            results.append(f"    └ FAILED. Error: {download_result}")
-            download_errors.append(filename)
-        
-        # 最後のファイルでなければ、サーバーのレート制限を回避するために15秒間の遅延を入れる
-        if i < len(filenames) - 1:
-            results.append("    - Waiting 15 seconds to bypass server rate-limiting...")
-            await asyncio.sleep(15)
-
-    results.append("\n--- Phase 2: Reading downloaded files ---")
-    if not download_success:
-        results.append("No files were successfully downloaded.")
-    else:
-        for filename in download_success:
-            try:
-                local_path = os.path.join(temp_dir, filename)
-                with open(local_path, 'r', encoding='utf-8', errors='ignore') as f:
-                    content = f.read()
-                results.append(f"\n--- Content of {filename} ---")
-                results.append(content)
-            except Exception as e:
-                results.append(f"\n--- Failed to read local file {filename} ---")
-                results.append(f"Error: {e}")
-
-    shutil.rmtree(temp_dir)
-    results.append("\n========================================")
-    results.append("Process finished.")
-    
-    return "\n".join(results)
 
 # =============================================================================
 # ブルートフォース攻撃ツール
@@ -477,13 +379,7 @@ async def comprehensive_recon(target: str) -> str:
         web_comprehensive = await web_scanner.comprehensive_web_scan(web_target)
         results.append(web_comprehensive)
     
-    # 5. FTP匿名ログイン分析（FTPサービスが見つかった場合）
-    # 注: FTPスキャンは明示的な要求がある場合のみ実行されます
-    if any(port in detailed_nmap for port in ['21', '2121']):
-        results.append("\n5. FTP Services Detected")
-        results.append("-" * 35)
-        results.append("FTPサービス（ポート21/2121）が検出されました。")
-        results.append("FTP匿名ログインのテストが必要な場合は、明示的にftp_anonymous_scanを実行してください。")
+
     
     return "\n".join(results)
 
@@ -572,9 +468,7 @@ async def web_security_audit(url: str) -> str:
 
 
 
-# =============================================================================
-# OSINTツール
-# =============================================================================
+
 
 
 
@@ -781,7 +675,6 @@ async def scanner_status() -> str:
         f"Web Scanner: {await web_scanner.get_status()}",
         f"DNS Scanner: {await dns_scanner.get_status()}",
         f"Service Analyzer: {await service_analyzer.get_status()}",
-        f"FTP Scanner: {await ftp_scanner.get_status()}",
         f"SSH Explorer: Available",
         "",
         "=== AVAILABLE TOOL CATEGORIES ===",
@@ -810,9 +703,7 @@ async def scanner_status() -> str:
         "  • service_analyze_nmap: nmapの結果を分析",
         "  • service_quick_analysis: 特定ポートの分析",
         "",
-        "📁 FTP Security (ftp_*):",
-        "  • ftp_anonymous_scan: FTP匿名ログインスキャン",
-        "  • ftp_server_info: FTPサーバー情報取得",
+
         "",
         "🚀 Integrated Reconnaissance:",
         "  • quick_recon: クイック偵察（nmap + web基本）",
@@ -885,6 +776,6 @@ async def show_wordlists() -> str:
 
 if __name__ == "__main__":
     print("Starting Advanced Recon Scanner MCP server...", file=sys.stderr)
-    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, ftp_scanner, ssh_explorer", file=sys.stderr)
-    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, FTP anonymous login scanning, SSH post-connection investigation", file=sys.stderr)
+    print("Modules loaded: nmap_scanner, web_scanner, dns_scanner, service_analyzer, ssh_explorer", file=sys.stderr)
+    print("Features: Network scanning, Web analysis, DNS investigation, Service security analysis, SSH post-connection investigation", file=sys.stderr)
     mcp.run()
