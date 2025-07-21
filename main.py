@@ -274,27 +274,31 @@ async def comprehensive_recon(target: str) -> str:
         web_comprehensive = await web_scanner.comprehensive_web_scan(target)
         results.append(web_comprehensive)
     else:
-        # 1. DNS包括調査
-        if '.' in target:
+        # 1. DNS包括調査（ドメイン名の場合のみ）
+        if '.' in target and not target.replace('.', '').isdigit():
             results.append("\n1. DNS Investigation")
             results.append("-" * 30)
             dns_result = await dns_scanner.dns_comprehensive(target)
             results.append(dns_result)
+        else:
+            results.append("\n1. DNS Investigation")
+            results.append("-" * 30)
+            results.append("Skipped: IP address detected, DNS investigation not applicable")
         
-        # 2. ネットワークスキャン（詳細版）
-        results.append("\n2. Network Scan (Detailed)")
+        # 2. ネットワークスキャン（基本版から開始）
+        results.append("\n2. Network Scan (Basic)")
         results.append("-" * 30)
-        detailed_nmap = await nmap_scanner.detailed_scan(target)
-        results.append(detailed_nmap)
+        basic_nmap = await nmap_scanner.basic_scan(target)
+        results.append(basic_nmap)
         
         # 3. サービス分析
         results.append("\n3. Service Security Analysis")
         results.append("-" * 30)
-        service_analysis = await service_analyzer.analyze_nmap_results(detailed_nmap)
+        service_analysis = await service_analyzer.analyze_nmap_results(basic_nmap)
         results.append(service_analysis)
         
         # 4. Web包括分析（HTTPサービスが見つかった場合）
-        if any(port in detailed_nmap for port in ['80', '443', '8080', '8443']):
+        if any(port in basic_nmap for port in ['80', '443', '8080', '8443']):
             web_target = target
             if not target.startswith(('http://', 'https://')):
                 # HTTPSを優先して試行
