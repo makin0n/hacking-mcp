@@ -221,24 +221,27 @@ async def quick_recon(target: str) -> str:
     """
     results = []
     
-    # 基本的なnmapスキャン
-    results.append("=== NETWORK SCAN (Nmap) ===")
-    nmap_result = await nmap_scanner.basic_scan(target)
-    results.append(nmap_result)
-    
-    # nmapの結果をサービス分析
-    results.append("\n=== SERVICE ANALYSIS ===")
-    service_analysis = await service_analyzer.analyze_nmap_results(nmap_result)
-    results.append(service_analysis)
-    
-    # WebサイトかどうかチェックしてWeb分析を実行
+    # HTTP/HTTPSのURLが指定された場合はポートスキャンをスキップ
     if target.startswith(('http://', 'https://')):
+        results.append("=== WEB-ONLY ANALYSIS (Port scan skipped for HTTP/HTTPS URL) ===")
         web_target = target
-    elif '.' in target and not '/' in target:
-        # ドメイン名の場合はHTTPSを試してからHTTP
-        web_target = f"https://{target}"
     else:
-        web_target = None
+        # 基本的なnmapスキャン
+        results.append("=== NETWORK SCAN (Nmap) ===")
+        nmap_result = await nmap_scanner.basic_scan(target)
+        results.append(nmap_result)
+        
+        # nmapの結果をサービス分析
+        results.append("\n=== SERVICE ANALYSIS ===")
+        service_analysis = await service_analyzer.analyze_nmap_results(nmap_result)
+        results.append(service_analysis)
+        
+        # WebサイトかどうかチェックしてWeb分析を実行
+        if '.' in target and not '/' in target:
+            # ドメイン名の場合はHTTPSを試してからHTTP
+            web_target = f"https://{target}"
+        else:
+            web_target = None
     
     if web_target:
         results.append("\n=== WEB ANALYSIS ===")
@@ -264,38 +267,43 @@ async def comprehensive_recon(target: str) -> str:
     results.append(f"Target: {target}")
     results.append("=" * 60)
     
-    # 1. DNS包括調査
-    if not target.startswith(('http://', 'https://')) and '.' in target:
-        results.append("\n1. DNS Investigation")
-        results.append("-" * 30)
-        dns_result = await dns_scanner.dns_comprehensive(target)
-        results.append(dns_result)
-    
-    # 2. ネットワークスキャン（詳細版）
-    results.append("\n2. Network Scan (Detailed)")
-    results.append("-" * 30)
-    detailed_nmap = await nmap_scanner.detailed_scan(target)
-    results.append(detailed_nmap)
-    
-    # 3. サービス分析
-    results.append("\n3. Service Security Analysis")
-    results.append("-" * 30)
-    service_analysis = await service_analyzer.analyze_nmap_results(detailed_nmap)
-    results.append(service_analysis)
-    
-    # 4. Web包括分析（HTTPサービスが見つかった場合）
-    if any(port in detailed_nmap for port in ['80', '443', '8080', '8443']):
-        web_target = target
-        if not target.startswith(('http://', 'https://')):
-            # HTTPSを優先して試行
-            web_target = f"https://{target}"
-        
-        results.append("\n4. Web Application Analysis")
-        results.append("-" * 30)
-        web_comprehensive = await web_scanner.comprehensive_web_scan(web_target)
+    # HTTP/HTTPSのURLが指定された場合はポートスキャンをスキップ
+    if target.startswith(('http://', 'https://')):
+        results.append("\n1. Web-Only Analysis (Port scan skipped for HTTP/HTTPS URL)")
+        results.append("-" * 60)
+        web_comprehensive = await web_scanner.comprehensive_web_scan(target)
         results.append(web_comprehensive)
-    
-
+    else:
+        # 1. DNS包括調査
+        if '.' in target:
+            results.append("\n1. DNS Investigation")
+            results.append("-" * 30)
+            dns_result = await dns_scanner.dns_comprehensive(target)
+            results.append(dns_result)
+        
+        # 2. ネットワークスキャン（詳細版）
+        results.append("\n2. Network Scan (Detailed)")
+        results.append("-" * 30)
+        detailed_nmap = await nmap_scanner.detailed_scan(target)
+        results.append(detailed_nmap)
+        
+        # 3. サービス分析
+        results.append("\n3. Service Security Analysis")
+        results.append("-" * 30)
+        service_analysis = await service_analyzer.analyze_nmap_results(detailed_nmap)
+        results.append(service_analysis)
+        
+        # 4. Web包括分析（HTTPサービスが見つかった場合）
+        if any(port in detailed_nmap for port in ['80', '443', '8080', '8443']):
+            web_target = target
+            if not target.startswith(('http://', 'https://')):
+                # HTTPSを優先して試行
+                web_target = f"https://{target}"
+            
+            results.append("\n4. Web Application Analysis")
+            results.append("-" * 30)
+            web_comprehensive = await web_scanner.comprehensive_web_scan(web_target)
+            results.append(web_comprehensive)
     
     return "\n".join(results)
 
@@ -400,48 +408,63 @@ async def comprehensive_recon_with_report(target: str) -> str:
     report = ReportManager(target)
     print(f"[*] Starting comprehensive recon with reporting for {target}...")
     
-    # 2. ネットワークスキャンを実行し、レポートに追記
-    # まず基本スキャンで開放ポートを特定
-    basic_nmap = await nmap_scanner.basic_scan(target)
-    open_ports = nmap_scanner._extract_open_ports_from_result(basic_nmap)
-    
-    if open_ports:
-        ports_str = ",".join(open_ports)
-        detailed_nmap = await nmap_scanner.detailed_scan(target, ports_str)
-    else:
-        detailed_nmap = basic_nmap
-    
-    report.add_section("Nmap Scan Results", detailed_nmap)
-    
-    # 3. HTTP/HTTPSサービスがあればスクリーンショットを撮影
-    open_ports = nmap_scanner._extract_open_ports_from_result(detailed_nmap)
-    web_ports_found = False # Webポートが見つかったかどうかのフラグ
-    
-    for port in open_ports:
-        # 一般的なWebポートをチェック
-        if port in ['80', '443', '8080', '8443']:
-            web_ports_found = True
-            protocol = "https" if port in ['443', '8443'] else "http"
-            # ポート番号を含めたURLを生成
-            service_url = f"{protocol}://{target}:{port}"
-            
-            ss_filename = f"{service_url.replace('://', '_').replace(':', '_')}.png"
-            ss_path = os.path.join(report.ss_dir, ss_filename)
-            
-            if await web_scanner.take_screenshot(service_url, ss_path):
-                report.add_screenshot(service_url, ss_path)
-
-    # 4. DNSスキャンを実行し、レポートに追記
-    dns_result = await dns_scanner.dns_comprehensive(target)
-    report.add_section("DNS Analysis", dns_result)
-
-    # 5. Webポートが見つかった場合のみ、Web包括分析を実行
-    if web_ports_found:
-        # web_scannerが賢くなったので、ターゲットをそのまま渡すだけで良い
+    # HTTP/HTTPSのURLが指定された場合はポートスキャンをスキップ
+    if target.startswith(('http://', 'https://')):
+        print(f"[*] HTTP/HTTPS URL detected, skipping port scan for {target}")
+        
+        # Web包括分析を実行
         web_comprehensive = await web_scanner.comprehensive_web_scan(target)
         report.add_section("Web Application Analysis", web_comprehensive)
+        
+        # スクリーンショットを撮影
+        ss_filename = f"{target.replace('://', '_').replace(':', '_').replace('/', '_')}.png"
+        ss_path = os.path.join(report.ss_dir, ss_filename)
+        
+        if await web_scanner.take_screenshot(target, ss_path):
+            report.add_screenshot(target, ss_path)
     else:
-        report.add_section("Web Application Analysis", "No open web ports (80, 443, 8080, 8443) found. Skipping web scan.")
+        # 2. ネットワークスキャンを実行し、レポートに追記
+        # まず基本スキャンで開放ポートを特定
+        basic_nmap = await nmap_scanner.basic_scan(target)
+        open_ports = nmap_scanner._extract_open_ports_from_result(basic_nmap)
+        
+        if open_ports:
+            ports_str = ",".join(open_ports)
+            detailed_nmap = await nmap_scanner.detailed_scan(target, ports_str)
+        else:
+            detailed_nmap = basic_nmap
+        
+        report.add_section("Nmap Scan Results", detailed_nmap)
+        
+        # 3. HTTP/HTTPSサービスがあればスクリーンショットを撮影
+        open_ports = nmap_scanner._extract_open_ports_from_result(detailed_nmap)
+        web_ports_found = False # Webポートが見つかったかどうかのフラグ
+        
+        for port in open_ports:
+            # 一般的なWebポートをチェック
+            if port in ['80', '443', '8080', '8443']:
+                web_ports_found = True
+                protocol = "https" if port in ['443', '8443'] else "http"
+                # ポート番号を含めたURLを生成
+                service_url = f"{protocol}://{target}:{port}"
+                
+                ss_filename = f"{service_url.replace('://', '_').replace(':', '_')}.png"
+                ss_path = os.path.join(report.ss_dir, ss_filename)
+                
+                if await web_scanner.take_screenshot(service_url, ss_path):
+                    report.add_screenshot(service_url, ss_path)
+
+        # 4. DNSスキャンを実行し、レポートに追記
+        dns_result = await dns_scanner.dns_comprehensive(target)
+        report.add_section("DNS Analysis", dns_result)
+
+        # 5. Webポートが見つかった場合のみ、Web包括分析を実行
+        if web_ports_found:
+            # web_scannerが賢くなったので、ターゲットをそのまま渡すだけで良い
+            web_comprehensive = await web_scanner.comprehensive_web_scan(target)
+            report.add_section("Web Application Analysis", web_comprehensive)
+        else:
+            report.add_section("Web Application Analysis", "No open web ports (80, 443, 8080, 8443) found. Skipping web scan.")
 
     # 6. 最後に短い完了メッセージだけを返す
     final_message = f"✅ Scan complete. Full report saved at: {report.report_path}"
