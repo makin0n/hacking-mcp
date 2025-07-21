@@ -539,17 +539,7 @@ async def ssh_comprehensive_exploration(host: str, username: str, password: str,
 
 
 
-@mcp.tool()
-async def ssh_execute_cron_copy_immediately(host: str, username: str, password: str, port: int = 22) -> str:
-    """cronジョブを即座に実行してroot.txtをカレントディレクトリにコピーします
-    
-    Args:
-        host: 接続先ホストのIPアドレスまたはホスト名
-        username: SSHユーザー名
-        password: SSHパスワード
-        port: SSHポート番号 (デフォルト: 22)
-    """
-    return await ssh_explorer.execute_cron_copy_immediately(host=host, port=port, username=username, password=password)
+
 
 @mcp.tool()
 async def ssh_add_root_privilege_escalation(host: str, username: str, password: str, port: int = 22) -> str:
@@ -656,7 +646,7 @@ async def scanner_status() -> str:
         "  • ssh_explore_system_directories: システムディレクトリ調査",
         "  • ssh_check_hidden_files: 隠しファイル検索",
         "  • ssh_comprehensive_exploration: flag*.txtやroot.txtファイル検索",
-        "  • ssh_execute_cron_copy_immediately: cronジョブを即座に実行してroot.txtをコピー",
+
         "  • ssh_add_root_privilege_escalation: cronjob.shにroot権限取得コマンドを追記",
         "  • ssh_cleanup_files: 指定パターンのファイル削除・整理",
         "  • ssh_list_current_files: 現在ディレクトリのファイル一覧表示",
