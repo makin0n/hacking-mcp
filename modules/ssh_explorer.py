@@ -126,9 +126,25 @@ class SSHExplorer:
         async def task(conn):
             result_text = "システムディレクトリ調査結果:\n\n"
             for dir_path in directories:
-                contents = await self._run_remote_command(conn, f'ls -la {dir_path}')
+                # ディレクトリの存在確認
+                dir_exists = await self._run_remote_command(conn, f'test -d {dir_path} && echo "exists" || echo "not found"')
+                if "not found" in dir_exists:
+                    result_text += f"=== {dir_path} ===\n"
+                    result_text += "ディレクトリが存在しません\n\n"
+                    continue
+                
+                # ファイル数とディレクトリ数のみを表示
+                file_count = await self._run_remote_command(conn, f'find {dir_path} -maxdepth 1 -type f | wc -l')
+                dir_count = await self._run_remote_command(conn, f'find {dir_path} -maxdepth 1 -type d | wc -l')
+                
                 result_text += f"=== {dir_path} ===\n"
-                result_text += f"{contents}\n\n"
+                result_text += f"ファイル数: {file_count.strip()}\n"
+                result_text += f"ディレクトリ数: {dir_count.strip()}\n"
+                
+                # 重要なファイルのみを表示（最初の3つ）
+                important_files = await self._run_remote_command(conn, f'ls -la {dir_path} | head -4')
+                result_text += f"内容（最初の3つ）:\n{important_files}\n\n"
+            
             return result_text
 
         return await self._execute_exploration(host, port, username, password, task)
