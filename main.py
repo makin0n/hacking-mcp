@@ -410,11 +410,11 @@ async def comprehensive_recon_with_report(target: str) -> str:
     
     # 1. レポートマネージャーを初期化
     report = ReportManager(target)
-    print(f"[*] Starting comprehensive recon with reporting for {target}...")
+    print(f"[*] Starting comprehensive recon with reporting for {target}...", file=sys.stderr)
     
     # HTTP/HTTPSのURLが指定された場合はポートスキャンをスキップ
     if target.startswith(('http://', 'https://')):
-        print(f"[*] HTTP/HTTPS URL detected, skipping port scan for {target}")
+        print(f"[*] HTTP/HTTPS URL detected, skipping port scan for {target}", file=sys.stderr)
         
         # Web包括分析を実行
         web_comprehensive = await web_scanner.comprehensive_web_scan(target)
@@ -472,7 +472,7 @@ async def comprehensive_recon_with_report(target: str) -> str:
 
     # 6. 最後に短い完了メッセージだけを返す
     final_message = f"✅ Scan complete. Full report saved at: {report.report_path}"
-    print(final_message) # 念のためコンテナのログにも出力
+    print(final_message, file=sys.stderr)  # 念のためコンテナのログにも出力（stderrでMCPのstdoutを汚さない）
     return final_message
 
 # =============================================================================

@@ -1,4 +1,4 @@
-FROM python:3.11-slim
+FROM mcr.microsoft.com/playwright/python:v1.44.0-jammy
 
 # 基本パッケージのインストール
 RUN apt-get update && \
@@ -35,8 +35,8 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Playwrightのブラウザをインストール（--with-depsで依存関係もインストール）
-RUN python -m playwright install --with-deps
+# Playwrightのブラウザはベースイメージに含まれているためインストール不要
+# RUN python -m playwright install --with-deps
 
 # アプリケーションファイルのコピー
 #COPY main.py .
@@ -60,6 +60,12 @@ RUN chown -R hacker:hacker /app
 
 # 非rootユーザーに切り替え
 USER hacker
+
+# 依存ライブラリの冗長なstdoutを抑える（MCPはstdoutをJSON-RPC専用にするため）
+ENV CI=1
+
+# Apache2の自動起動を無効化（もしインストールされていれば）
+RUN if [ -f /etc/init.d/apache2 ]; then update-rc.d apache2 disable; fi
 
 # スタートアップスクリプトを実行
 CMD ["/bin/bash", "./startup.sh"]
