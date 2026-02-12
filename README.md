@@ -126,6 +126,26 @@ mkdir reports
 ### 4. Claude Desktopの起動
 Claude Desktopを起動し、MCPサーバーが正常に接続されていることを確認します。
 
+### 5. Cursorでの設定
+
+CursorでもMCPサーバーを利用可能です。
+
+1. Cursorを開き、`Settings` > `Features` > `MCP` に移動します。
+2. `Add New MCP Server` をクリックします。
+3. 以下の情報を入力して保存します：
+
+{
+  "mcpServers": {
+    "hacking-mcp": {
+      "command": "docker",
+      "args": ["run", "--rm", "-v", "C:/Users/<ユーザ名>/Documents/GitHub/hacking-mcp/reports:/app/reports", "--network", "host", "-i", "hacking-mcp"]
+    }
+  }
+}
+  ※ Argsはスペース区切りで入力してください。パスの `<ユーザー名>` はご自身の環境に合わせて変更してください。
+  ※ GitHubからクローンしたフォルダ名が `hacking-mcp`（ハイフンあり）の場合はそのままでOKですが、 `hackingmcp`（ハイフンなし）の場合はパスを修正してください。
+
+
 ## 📖 使用方法
 
 ### 基本的な使用
