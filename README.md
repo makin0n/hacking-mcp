@@ -1,12 +1,12 @@
 # Hacking MCP - 高度なネットワークスキャン・ペネトレーションテストツール
 
-Hacking MCPは、Claude DesktopとDockerを活用した包括的なネットワークスキャン・ペネトレーションテストツールです。
+Hacking MCPは、CursorとDockerを活用した包括的なネットワークスキャン・ペネトレーションテストツールです。
 nmap、各種セキュリティツールを使用してターゲットシステムの詳細な分析を行い、
-Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供します。
+Cursorの知識ベースを活用して脆弱性情報と対策を提供します。
 
 ## 🚀 特徴
 
-- **Claude Desktopとの統合**: 高度なAI分析による脆弱性評価と対策提案
+- **Cursorとの統合**: 高度なAI分析による脆弱性評価と対策提案
 - **Dockerコンテナ**: 安全で効率的なスキャン環境
 - **包括的なスキャン機能**: ポートスキャン、Webスキャン、DNS調査
 - **SSH接続後調査**: リモートサーバーの詳細調査とファイル検索
@@ -55,7 +55,7 @@ Claude Desktopの知識ベースを活用して脆弱性情報と対策を提供
 
 ## 📋 必要条件
 
-- **Claude Desktop**: 最新バージョン
+- **Cursor**: 最新バージョン
 - **Docker**: 20.10以上
 - **OS**: Windows 10/11、macOS、Linux
 - **メモリ**: 最低4GB（推奨8GB以上）
@@ -87,61 +87,28 @@ docker build --progress=plain -t hacking-mcp .
 - Python依存関係: anthropic、mcp、playwright、asyncssh等
 - セキュリティ設定: 非rootユーザー（hacker）で実行
 
-### 3. Claude Desktop設定ファイルの配置
+### 3. Cursorの起動
+Cursorを起動し、MCPサーバーが正常に接続されていることを確認します。
 
-#### 基本設定（ボリュームマウントなし）
-```bash
-# Windows
-copy "Claude\claude_desktop_config.json" "%APPDATA%\Claude\claude_desktop_config.json"
+### 4. Cursorでの設定
 
-# macOS
-cp Claude/claude_desktop_config.json ~/Library/Application\ Support/Claude/claude_desktop_config.json
+CursorでMCPサーバーを利用可能です。
 
-# Linux
-cp Claude/claude_desktop_config.json ~/.config/Claude/claude_desktop_config.json
-```
+1. Cursor を起動し、設定画面へ遷移します。画面左下の歯車ボタンをクリックし、「Tools & MCP」という項目をクリックします。この画面にて、先ほど取得したNmap MCPを接続・設定するための各種構成を行うことになります。
+2. Cursor 上で MCP（Model Context Protocol）サーバーの設定を行います。設定画面内に表示されている「New MCP Server」ボタンをクリックすると、新規のMCPサーバー設定ファイルである「mcp.json」が自動的に開かれます。このファイルは、Cursorに対して外部ツール（今回の場合はNmapやBurpなど）をどのように連携させるかを定義するための重要な設定ファイルとなります。
+3. 「mcp.json」はJSON形式で記述されており、構文エラーがあると正しく読み込まれないため、記述時にはカンマの有無や括弧の対応関係などに注意してください。また、既に他のMCP設定が存在する場合は、それらを上書きしないように配慮しつつ、追記する形で設定を追加することが望ましいです。
+具体的には、下記のコードを「mcp.json」内に記述し、保存してください。設定反映後、Cursor上から各MCPツールが利用可能となる状態を確認することで、正しく連携が完了しているかを検証できます。
 
-#### ボリュームマウント付き設定
-```bash
-# Windows
-copy "Claude\claude_desktop_config_with_volume.json" "%APPDATA%\Claude\claude_desktop_config.json"
-```
-
-2. 設定ファイル内のパスを実際のパスに変更:
 ```json
 {
   "mcpServers": {
     "hacking-mcp": {
       "command": "docker",
-      "args": ["run", "--rm", "-v", "C:/Users/<ユーザー名>/Documents/GitHub/hacking-mcp/reports:/app/reports", "--network", "host", "-i", "hacking-mcp"]
-    }
-}
-```
-
-3. レポートディレクトリを作成:
-```bash
-mkdir reports
-```
-
-### 4. Claude Desktopの起動
-Claude Desktopを起動し、MCPサーバーが正常に接続されていることを確認します。
-
-### 5. Cursorでの設定
-
-CursorでもMCPサーバーを利用可能です。
-
-1. Cursorを開き、`Settings` > `Features` > `MCP` に移動します。
-2. `Add New MCP Server` をクリックします。
-3. 以下の情報を入力して保存します：
-
-{
-  "mcpServers": {
-    "hacking-mcp": {
-      "command": "docker",
-      "args": ["run", "--rm", "-v", "C:/Users/<ユーザ名>/Documents/GitHub/hacking-mcp/reports:/app/reports", "--network", "host", "-i", "hacking-mcp"]
+      "args": ["run", "--rm", "-i", "hacking-mcp"]
     }
   }
 }
+```
   ※ Argsはスペース区切りで入力してください。パスの `<ユーザー名>` はご自身の環境に合わせて変更してください。
   ※ GitHubからクローンしたフォルダ名が `hacking-mcp`（ハイフンあり）の場合はそのままでOKですが、 `hackingmcp`（ハイフンなし）の場合はパスを修正してください。
 
@@ -149,7 +116,7 @@ CursorでもMCPサーバーを利用可能です。
 ## 📖 使用方法
 
 ### 基本的な使用
-Claude Desktopで以下のような形式で質問を入力してください：
+Cursorで以下のような形式で質問を入力してください：
 
 ```
 <対象IPアドレス>をスキャンして
@@ -280,9 +247,8 @@ hacking-mcp/
 │   └── service_analyzer.py # サービス分析機能
 ├── utils/                # ユーティリティ
 │   └── report_manager.py # レポート管理機能
-├── Claude/               # Claude Desktop設定
-│   ├── claude_desktop_config.json
-│   └── claude_desktop_config_with_volume.json
+├── Cursor/               # Cursor設定
+│   ├── cursor_config.json
 └── reports/              # レポート保存ディレクトリ
 ```
 
@@ -311,7 +277,7 @@ docker system prune -a
 docker build --progress=plain --no-cache -t hacking-mcp .
 ```
 
-### Claude Desktop接続エラー
+### Cursor接続エラー
 1. 設定ファイルのパスを確認
 2. Dockerイメージが正常にビルドされているか確認
 3. ポート競合がないか確認

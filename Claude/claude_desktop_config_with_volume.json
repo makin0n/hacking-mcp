@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "hacking-mcp": {
-      "command": "docker",
-      "args": ["run", "--rm", "-v", "C:/<path to your directory>/reports:/app/reports", "--network", "host", "-i", "hacking-mcp"]
-    }
-  }
-}
